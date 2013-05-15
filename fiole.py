@@ -435,11 +435,6 @@ class Response(object):
         self.set_cookie(name, value="", path=path, expires=expires,
                         domain=domain)
 
-    def clear_all_cookies(self):
-        """Delete all the cookies the user sent with this request."""
-        for name in self.request.cookies:
-            self.clear_cookie(name)
-
     def set_secure_cookie(self, name, value, expires_days=30, **kwargs):
         """Sign and timestamp a cookie so it cannot be forged."""
         self.set_cookie(name, self.create_signed_value(name, value),
