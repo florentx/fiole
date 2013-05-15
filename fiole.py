@@ -457,7 +457,7 @@ class Response(object):
         start_response(status, self.headers.to_list())
         if environ['REQUEST_METHOD'] == 'HEAD':
             return ()
-        return self.output if self.wrapped else [tobytes(self.output)]
+        return self.output if self.wrapped else [tobytes(self.output or '')]
 
 
 def handle_request(environ, start_response):
@@ -473,7 +473,7 @@ def handle_request(environ, start_response):
     return response.send(environ, start_response)
 
 
-def handle_error(exception, environ):
+def handle_error(exception, environ, level=0):
     """If an exception is thrown, deal with it and present an error page."""
     if not getattr(exception, 'hide_traceback', False):
         environ['wsgi.errors'].write("%s occurred on '%s': %s\n%s" % (
@@ -481,13 +481,18 @@ def handle_error(exception, environ):
             exception, traceback.format_exc()))
     status = getattr(exception, 'status', 500)
     handler = ERROR_HANDLERS.get(status) or default_error_handler(status)
-    return handler(exception), status
+    try:
+        return handler(exception), status
+    except Exception as exc:
+        if level > 3:
+            raise
+        return handle_error(exc, environ, level + 1)
 
 
 def find_matching_url(request):
     """Search through the methods registered."""
     allowed_methods = set()
-    for (re_match, methods, callback, status) in REQUEST_RULES:
+    for (regex, re_match, methods, callback, status) in REQUEST_RULES:
         m = re_match(request.path)
         if m:
             if request.method in methods:
@@ -527,7 +532,7 @@ def send_file(request, filename, root=STATIC_FOLDER,
 
 def route(url, methods=('GET',), status=200):
     def decorator(func):
-        REQUEST_RULES.append((_url_matcher(url), methods, func, status))
+        REQUEST_RULES.append((url, _url_matcher(url), methods, func, status))
         return func
     return decorator
 
@@ -1034,8 +1039,8 @@ def get_template(name=None, source=None):
     return engine.get_template(name)
 
 
-def render_template(name=None, source=None, **context):
-    return get_template(name, source).render(context)
+def render_template(template_name=None, source=None, **context):
+    return get_template(template_name, source).render(context)
 
 
 # The WSGI HTTP server
