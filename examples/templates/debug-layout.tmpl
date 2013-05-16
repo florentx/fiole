@@ -1,0 +1,24 @@
+%require(title, request)
+%def content():
+%enddef
+<html>
+  <head>
+    <title>{{title}}</title>
+  </head>
+  <body>
+{{ content() }}\
+    <hr>
+    <pre>[request.GET]
+{{ request.GET|pretty|e }}</pre>
+    <hr>
+    <pre>[request.POST]
+{{ request.POST|pretty|e }}</pre>
+    <hr>
+    <pre>[request.headers]
+{{ request.headers|s|e }}</pre>
+    <hr>
+    <pre>[request.environ]
+{{ request.environ|pretty|e }}</pre>
+    <hr>
+  </body>
+</html>
