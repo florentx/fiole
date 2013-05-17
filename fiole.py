@@ -446,13 +446,14 @@ class Response(object):
 
     def send(self, environ, start_response):
         status = "%d %s" % (self.status, HTTP_CODES.get(self.status))
+        output = self.output if self.wrapped else [tobytes(self.output or '')]
+        if not self.wrapped:
+            self.headers['Content-Length'] = str(len(output[0]))
         if hasattr(self, "_new_cookie"):
             for cookie in self._new_cookie.values():
                 self.headers.add("Set-Cookie", cookie.OutputString(None))
         start_response(status, self.headers.to_list())
-        if environ['REQUEST_METHOD'] == 'HEAD':
-            return ()
-        return self.output if self.wrapped else [tobytes(self.output or '')]
+        return output if (environ['REQUEST_METHOD'] != 'HEAD') else ()
 
 
 def handle_request(environ, start_response):
@@ -515,12 +516,16 @@ def send_file(request, filename, root=STATIC_FOLDER,
         raise NotFound("File does not exist.")
     if not os.access(desired_path, os.R_OK):
         raise Forbidden("You do not have permission to access this file.")
+    stat = os.stat(desired_path)
+    headers = {'Content-Length': str(stat.st_size),
+               'Last-Modified': format_timestamp(stat.st_mtime)}
 
     if not content_type:
         content_type = mimetypes.guess_type(filename)[0] or 'text/plain'
     file_wrapper = request.environ.get('wsgi.file_wrapper', FileWrapper)
     fobj = file_wrapper(open(desired_path, 'rb'), buffer_size)
-    return Response(fobj, content_type=content_type, wrapped=True)
+    return Response(fobj, headers=headers, content_type=content_type,
+                    wrapped=True)
 
 
 # Decorators

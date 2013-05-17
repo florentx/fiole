@@ -28,7 +28,8 @@ class FioleTestCase(unittest.TestCase):
         self.assertEqual(rv['data'], ['Hello World!'])
         self.assertEqual(rv, {
             'status': '200 OK',
-            'headers': [('Content-Type', 'text/html; charset=utf-8')],
+            'headers': [('Content-Type', 'text/html; charset=utf-8'),
+                        ('Content-Length', '12')],
             'data': ['Hello World!'],
             'errors': '',
         })
@@ -130,7 +131,8 @@ class FioleTestCase(unittest.TestCase):
         self.assertEqual(rv, {
             'status': '400 Bad Request',
             'headers': [('X-Foo', 'Testing'),
-                        ('Content-Type', 'text/plain; charset=utf-8')],
+                        ('Content-Type', 'text/plain; charset=utf-8'),
+                        ('Content-Length', '3')],
             'data': ['Meh'],
             'errors': '',
         })
@@ -257,7 +259,8 @@ class FioleTestCase(unittest.TestCase):
         self.assertEqual(rv['status'], '200 OK')
         self.assertEqual(rv['data'], ['42'])
         self.assertEqual(rv['headers'],
-                         [('Content-Type', 'text/html; charset=utf-8')])
+                         [('Content-Type', 'text/html; charset=utf-8'),
+                          ('Content-Length', '2')])
         self.assertFalse(rv['errors'])
 
     def test_cookie(self):
@@ -274,6 +277,7 @@ class FioleTestCase(unittest.TestCase):
         self.assertEqual(rv['status'], '200 OK')
         self.assertEqual(rv['headers'], [
             ('Content-Type', 'text/html; charset=utf-8'),
+            ('Content-Length', '9'),
             ('Set-Cookie', 'session=czpwoe83q8ape2ji23jxnm; Path=/'),
             ('Set-Cookie', 'nickname=gaston; Path=/')])
         self.assertFalse(rv['errors'])
@@ -308,8 +312,8 @@ class FioleTestCase(unittest.TestCase):
         rv = handle_single_request('GET /send_secure')
         self.assertEqual(rv['status'], '200 OK')
         self.assertEqual([h for (h, v) in rv['headers']],
-                         ['Content-Type', 'Set-Cookie'])
-        cookie, expires, path = rv['headers'][1][1].split('; ')
+                         ['Content-Type', 'Content-Length', 'Set-Cookie'])
+        cookie, expires, path = rv['headers'][2][1].split('; ')
         self.assertEqual(cookie[:9], 'foo=YmFy|')
         self.assertEqual(expires[:8], 'expires=')
         self.assertEqual(path, 'Path=/')
@@ -327,9 +331,10 @@ class FioleTestCase(unittest.TestCase):
         rv = handle_single_request('GET /clear', HTTP_COOKIE=cookie)
         self.assertEqual(rv['status'], '200 OK')
         self.assertEqual([h for (h, v) in rv['headers']],
-                         ['Content-Type', 'Set-Cookie', 'Set-Cookie'])
-        cookie1, expires1, path1 = rv['headers'][1][1].split('; ')
-        cookie2, expires2, path2 = rv['headers'][2][1].split('; ')
+                         ['Content-Type', 'Content-Length',
+                          'Set-Cookie', 'Set-Cookie'])
+        cookie1, expires1, path1 = rv['headers'][2][1].split('; ')
+        cookie2, expires2, path2 = rv['headers'][3][1].split('; ')
         self.assertEqual(sorted([cookie1, cookie2]), ['foo=', 'nickname='])
         self.assertEqual(expires1[:8], 'expires=')
         self.assertEqual(expires2[:8], 'expires=')
