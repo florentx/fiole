@@ -39,7 +39,7 @@ Example
 
   run_fiole()
 
-See ``examples/`` for more usage:
+See ``examples/`` for more usages:
 
 ::
 
