@@ -376,16 +376,16 @@ class Request(object):
         environ = self.environ.copy()
         environ['QUERY_STRING'] = ''    # Don't mix GET and POST variables
         raw_data = cgi.FieldStorage(fp=StringIO(self.body), environ=environ)
-        query_dict = {}
+        post_dict = {}
 
         for field in raw_data:
             if isinstance(raw_data[field], list):
-                query_dict[field] = [fs.value for fs in raw_data[field]]
+                post_dict[field] = [fs.value for fs in raw_data[field]]
             elif raw_data[field].filename:
-                query_dict[field] = raw_data[field]   # We've got a file.
+                post_dict[field] = raw_data[field]  # We've got a file.
             else:
-                query_dict[field] = raw_data[field].value
-        return query_dict
+                post_dict[field] = raw_data[field].value
+        return post_dict
 
 
 class Response(object):
