@@ -1,0 +1,24 @@
+%extends('examples-layout.tmpl')
+%require(name, rules)
+%def contents():
+<h3>Routes {{ ('for "%s" example' % name) if name != '__init__' else 'available' }}:</h3>
+<table>
+% for (regex, re_match, methods, callback, status) in rules:
+% if regex in ('/view_routes', '/view_source', '/examples', '/favicon.ico'):
+%   continue
+% endif
+  <tr>
+    <td>{{' '.join(methods) }}</td>
+% if '(?P<' in regex or not re_match(regex.rstrip('/') + '/'):
+    <td><pre>{{ regex|e }}</pre></td>
+% elif regex == '/':
+    <td>/ <a href="/" style="font-style: italic;">(root)</a></td>
+% else:
+    <td><a href="{{ regex|e }}">{{ regex|e }}</a></td>
+% endif
+  </tr>
+% endfor
+</table>
+(<a href="/view_source">view source</a>)<br>
+<a href="/examples">Index</a>
+%enddef

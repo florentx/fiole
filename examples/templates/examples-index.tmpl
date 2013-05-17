@@ -1,0 +1,10 @@
+%extends('examples-layout.tmpl')
+%require(names)
+%def contents():
+<h1>Examples</h1>
+<ul>
+%for name in names:
+  <li><a href="/examples?{{ name|e }}">{{ name|e }}</a> &mdash; (<a href="/view_source?{{ name|e }}" style="font-style: italic;">source</a>)</li>
+%endfor
+</ul>
+%enddef

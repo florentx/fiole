@@ -39,7 +39,11 @@ Example
 
   run_fiole()
 
-See ``examples/`` for more usages.
+See ``examples/`` for more usage:
+
+::
+
+  python fiole.py examples
 
 
 Thanks
