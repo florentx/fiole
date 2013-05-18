@@ -11,7 +11,7 @@ Hello World!<br><br>
 
 
 @get('/')
-@get('/(?P<name>\w*)')
+@get('/<name>')
 def index(request, name='stranger'):
     return index_template.render(name=name)
 
