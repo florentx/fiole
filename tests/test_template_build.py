@@ -65,7 +65,7 @@ w(' World')""")
 %require(title, username)
 {{username}}"""),
                          """\
-title, username = ctx['title'], ctx['username']
+title = ctx['title']; username = ctx['username']
 w(username)""")
 
     def test_require_extra_space(self):
@@ -76,10 +76,28 @@ w(username)""")
 
     username}}; {{ }}; {{ }}."""),
                          """\
-title, username = ctx['title'], ctx['username']
+title = ctx['title']; username = ctx['username']
 w(username)
 
 w('; '); w('; '); w('.')""")
+
+    def test_require_duplicate(self):
+        self.assertEqual(self.build_source("""\
+%require(title, username)
+% require ( title, username )
+{{username}}"""),
+                         """\
+title = ctx['title']; username = ctx['username']
+
+w(username)""")
+        self.assertEqual(self.build_source("""\
+%require(username)
+% require ( title, username )
+{{username}}"""),
+                         """\
+username = ctx['username']
+title = ctx['title']
+w(username)""")
 
     def test_out(self):
         """Test build_out."""

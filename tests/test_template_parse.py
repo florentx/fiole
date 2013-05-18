@@ -83,9 +83,9 @@ class LexerTestCase(unittest.TestCase):
     def test_stmt_token(self):
         """Test statement token."""
         tokens = self.tokenize('%require(title, users)\n')
-        self.assertEqual(tokens, [(1, 'require', 'title, users')])
-        tokens = self.tokenize('% require (title, users)\n')
-        self.assertEqual(tokens, [(1, 'require', 'title, users')])
+        self.assertEqual(tokens, [(1, 'require', ['title', 'users'])])
+        tokens = self.tokenize('% require (title,users)\n')
+        self.assertEqual(tokens, [(1, 'require', ['title', 'users'])])
 
     def test_comment_token(self):
         """Test statement token."""
@@ -154,9 +154,9 @@ class ParserTestCase(unittest.TestCase):
     def test_require(self):
         """Test parse_require."""
         nodes = self.parse('%require(title, users)\n')
-        self.assertEqual(nodes, [(1, 'require', 'title, users')])
-        nodes = self.parse('  % require(title, users)\n')
-        self.assertEqual(nodes, [(1, 'require', 'title, users')])
+        self.assertEqual(nodes, [(1, 'require', ['title', 'users'])])
+        nodes = self.parse('  % require( title , users )\n')
+        self.assertEqual(nodes, [(1, 'require', ['title', 'users'])])
 
     def test_extends(self):
         """Test parse_extends."""

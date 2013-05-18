@@ -682,8 +682,9 @@ class Parser(Lexer):
                 elif token not in ALL_TOKENS:
                     token = 'statement'
                 if token in ('require', 'include', 'extends'):
-                    stmt = (stmt.split('(', 1)[1].rsplit(')', 1)[0]
-                                .strip(' \t,'))
+                    stmt = re.search(r'\(\s*(.*?)\s*\)', stmt).group(1)
+                    if token == 'require':
+                        stmt = re.findall(r'([^\s,]+)[,\s]*', stmt)
                 return (m.end(), token, stmt)
 
         def var_token(source, pos):
@@ -747,7 +748,7 @@ class BlockBuilder(list):
     def __init__(self, indent='', lineno=0, nodes=None):
         self.indent = indent
         self.lineno = self.offset = lineno
-        self.local_vars = []
+        self.local_vars = set()
         if nodes:
             self.build_block(nodes)
 
@@ -914,11 +915,10 @@ class BlockBuilder(list):
         with self:
             return self.build_block(nodes)
 
-    def build_require(self, lineno, value, token):
-        variables = [v.strip() for v in value.split(',')]
-        stmt = ', '.join(variables) + ' = ' + ', '.join(
-            ["ctx['" + name + "']" for name in variables])
-        self.local_vars.extend(variables)
+    def build_require(self, lineno, values, token):
+        stmt = '; '.join([v + " = ctx['" + v + "']"
+                          for v in values if v not in self.local_vars])
+        self.local_vars.update(values)
         return self.add(lineno, stmt)
 
     def build_end(self, lineno, value, token):
@@ -1034,14 +1034,16 @@ engine = Engine()
 engine.global_vars.update({'str': unicode, 'escape': cgi.escape})
 
 
-def get_template(name=None, source=None):
+def get_template(name=None, source=None, require=None):
     if source is not None:
+        if require:
+            source = "%require(" + " ".join(require) + ")\n" + source
         return engine.get_template(name, source=source)
     return engine.get_template(name)
 
 
 def render_template(template_name=None, source=None, **context):
-    return get_template(template_name, source).render(context)
+    return get_template(template_name, source, context).render(context)
 
 
 # The WSGI HTTP server
