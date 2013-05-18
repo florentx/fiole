@@ -7,7 +7,7 @@ from fiole import engine, get_template, render_template
 
 
 class TemplateHelperTestCase(unittest.TestCase):
-    """Test the template helpers."""
+    """Test the template helpers: get_template, render_template."""
 
     def setUp(self):
         engine.templates, engine.renders, engine.modules = {}, {}, {}
@@ -37,7 +37,6 @@ class TemplateHelperTestCase(unittest.TestCase):
         self.assertEqual(template.render(ctx, dummy=42), result)
         self.assertEqual(template.render({}, **ctx), result)
         self.assertEqual(template.render(dummy=42, **ctx), result)
-        self.assertEqual(render_template(source=tmpl, **ctx), result)
 
         self.assertRaises(TypeError, template.render, 'John')
         self.assertRaises(TypeError, template.render, username=42)
@@ -58,7 +57,6 @@ class TemplateHelperTestCase(unittest.TestCase):
         template = get_template(source=tmpl)
         self.assertEqual(template.render(ctx), result)
         self.assertEqual(template.render(**ctx), result)
-        self.assertEqual(render_template(source=tmpl, **ctx), result)
 
         template = get_template(source=tmpl, require=['username'])
         self.assertEqual(template.render(ctx), result)
@@ -66,7 +64,6 @@ class TemplateHelperTestCase(unittest.TestCase):
         self.assertEqual(template.render(ctx, dummy=42), result)
         self.assertEqual(template.render({}, **ctx), result)
         self.assertEqual(template.render(dummy=42, **ctx), result)
-        self.assertEqual(render_template(source=tmpl, **ctx), result)
 
         self.assertRaises(TypeError, template.render, 'John')
         self.assertRaises(TypeError, template.render, username=42)
@@ -79,4 +76,22 @@ class TemplateHelperTestCase(unittest.TestCase):
         self.assertRaises(KeyError, template.render, **ctx)
         self.assertEqual(template.render(ctx, dummy=42), result)
         self.assertEqual(template.render(dummy=42, **ctx), result)
+
+    def test_render_template_require(self):
+        tmpl = "Welcome, {{username}}!"
+        result = 'Welcome, John!'
+        ctx = {'username': 'John'}
+
+        self.assertEqual(render_template(source=tmpl, **ctx), result)
         self.assertEqual(render_template(source=tmpl, dummy=42, **ctx), result)
+
+        self.assertRaises(Exception, render_template)
+        self.assertRaises(NameError, render_template, source=tmpl)
+        self.assertRaises(NameError, render_template, source=tmpl, dummy=42)
+
+        tmpl = "%require(username)\nWelcome, {{username}}!"
+        self.assertEqual(render_template(source=tmpl, **ctx), result)
+        self.assertEqual(render_template(source=tmpl, dummy=42, **ctx), result)
+
+        self.assertRaises(KeyError, render_template, source=tmpl)
+        self.assertRaises(KeyError, render_template, source=tmpl, dummy=42)
