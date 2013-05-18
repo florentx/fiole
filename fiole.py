@@ -530,11 +530,11 @@ def send_file(request, filename, root=STATIC_FOLDER,
 
 # Decorators
 
-def route(url, methods=('GET',), status=200):
+def route(url, methods=('GET',), callback=None, status=200):
     def decorator(func):
         REQUEST_RULES.append((url, _url_matcher(url), methods, func, status))
         return func
-    return decorator
+    return decorator(callback) if callback else decorator
 
 
 def get(url):

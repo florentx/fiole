@@ -28,7 +28,7 @@ def set_default_root():
         for (__, re_match, methods, __, __) in fiole.REQUEST_RULES:
             if re_match('/') and 'GET' in methods:
                 return
-        get('/')(list_routes)
+        route('/', ('GET',), list_routes)
 
 
 def load_example(name):
