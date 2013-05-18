@@ -79,7 +79,7 @@ class StartResponse(object):
 def handle_single_request(environ, **kw):
     """Return a dictionary: {status, headers, data, errors}."""
     if isinstance(environ, basestring):
-        method, sep, url = environ.partition(' ')
+        method, sep, url = environ.encode('utf-8').partition(' ')
         path, sep, query_string = url.partition('?')
         environ = dict(ENVIRON)
         environ.update({

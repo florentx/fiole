@@ -64,6 +64,28 @@ class FioleTestCase(unittest.TestCase):
         rv = handle_single_request('DELETE /more')
         self.assertEqual(rv['status'], '405 Method Not Allowed')
 
+    def test_request_route_placeholder(self):
+        @fiole.route(u'/<_mot_>/à/<v_42>')
+        def route1(request, _mot_, v_42):
+            return u'%s à %s' % (_mot_, v_42)
+
+        rv = handle_single_request(u'GET /table/à/manger')
+        self.assertEqual(rv['status'], '200 OK')
+        self.assertEqual(rv['data'], [u'table à manger'.encode('utf-8')])
+
+    def test_request_route_regex(self):
+        @fiole.route(u'/(?P<a>\d+)/plus/(?P<b>\d+)')
+        def addition(request, a, b):
+            (a, b) = int(a), int(b)
+            return '%d + %d = %d' % (a, b, a + b)
+
+        rv = handle_single_request(u'GET /25/plus/17/')
+        self.assertEqual(rv['status'], '200 OK')
+        self.assertEqual(rv['data'], ['25 + 17 = 42'])
+
+        rv = handle_single_request(u'GET /navet/plus/tomate/')
+        self.assertEqual(rv['status'], '404 Not Found')
+
     def test_error_handling(self):
         @fiole.errorhandler(404)
         def not_found(exc):
