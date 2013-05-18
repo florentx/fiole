@@ -146,9 +146,10 @@ def _create_signature(secret, *parts):
     return sign.hexdigest()
 
 
-def _url_matcher(url, _re_sub=re.compile(r'(<[a-zA-Z_]\w*>)').sub):
-    regex = url if ('(?P<' in url) else _re_sub(r'(?P\1[^/]+)', re.escape(url))
-    return re.compile("^%s/$" % regex.rstrip('/'), re.U).match
+def _url_matcher(url, _psub=re.compile(r'(<[a-zA-Z_]\w*>)').sub):
+    if '(?' not in url:
+        url = _psub(r'(?P\1[^/]+)', re.sub(r'([^<\w/>])', r'\\\1', url))
+    return re.compile("^%s/$" % url.rstrip('/'), re.U).match
 
 
 def _format_vkw(value, kw, _quoted=re.compile(r"[^\w!#$%&'*.^`|~+-]").search):
