@@ -147,7 +147,7 @@ def _create_signature(secret, *parts):
 
 
 def _url_matcher(url, _re_sub=re.compile(r'(<[a-zA-Z_]\w*>)').sub):
-    regex = url if ('(?P<' in url) else _re_sub(r'(?P\1[^/]+)', url)
+    regex = url if ('(?P<' in url) else _re_sub(r'(?P\1[^/]+)', re.escape(url))
     return re.compile("^%s/$" % regex.rstrip('/'), re.U).match
 
 
