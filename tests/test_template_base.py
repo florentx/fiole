@@ -142,10 +142,6 @@ class BlockBuilderTestCase(unittest.TestCase):
             self.assertEqual(self.builder.indent, ' ' * 4)
         self.assertEqual(self.builder.indent, '')
 
-    def test_unexpected_end_block(self):
-        """Test raises error."""
-        self.assertRaises(Exception, self.builder.__exit__, None, None, None)
-
     def test_inconsistence(self):
         """Test add a line with wrong lineno."""
         self.assertRaises(Exception, self.builder.add, -1, '')
