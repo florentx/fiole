@@ -592,6 +592,7 @@ ALL_TOKENS = BLOCK_TOKENS + CONTINUE_TOKENS + END_TOKENS + RESERVED_TOKENS
 COMPOUND_TOKENS = ['extends', 'def', 'block', 'continue']
 OUT_TOKENS = ['markup', 'var', 'include']
 isidentifier = re.compile(r'[a-zA-Z_]\w*').match
+setdefs = "super_defs['?'] = ?; ? = local_defs.setdefault('?', ?)".replace
 
 
 class Loader(object):
@@ -870,27 +871,21 @@ class BlockBuilder(list):
             value = repr(value)
         else:
             ln, value = lineno, "''"
-        def_name = stmt[4:stmt.index('(', 5)]
-        defs = def_name.join(["super_defs['", "'] = ", "; ",
-                              " = local_defs.setdefault('", "', ", ")"])
         self.add(lineno, stmt)
         with self:
             self.add(ln, "return " + value)
-        return self.add(ln + 1, defs)
+        return self.add(ln + 1, setdefs('?', stmt[4:stmt.index('(', 5)]))
 
     def build_def(self, lineno, value, token):
         assert token == 'def'
         stmt, nodes = value
-        def_name = stmt[4:stmt.index('(', 5)]
-        defs = def_name.join(["super_defs['", "'] = ", "; ",
-                              " = local_defs.setdefault('", "', ", ")"])
         self.add(lineno, stmt)
         with self:
             self.add(lineno + 1, self.writer_declare)
             self.build_block(nodes)
-            lineno = self.lineno
-            self.add(lineno, self.writer_return)
-        return self.add(lineno + 1, defs)
+            ln = self.lineno
+            self.add(ln, self.writer_return)
+        return self.add(ln + 1, setdefs('?', stmt[4:stmt.index('(', 5)]))
 
     def build_out(self, lineno, nodes, token):
         assert token == 'out'
