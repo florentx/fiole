@@ -746,18 +746,16 @@ class BlockBuilder(list):
     writer_declare = '_b = []; w = _b.append'
     writer_return = "return ''.join(_b)"
 
-    def __init__(self, indent='', lineno=0, nodes=None):
+    def __init__(self, indent='', lineno=0, nodes=()):
         self.indent = indent
         self.lineno = self.offset = lineno
         self.local_vars = set()
-        if nodes:
-            self.build_block(nodes)
+        self.build_block(nodes)
 
     def __enter__(self):
         self.indent += '    '
 
     def __exit__(self, exc_type, exc_value, exc_tb):
-        assert len(self.indent) >= 4
         self.indent = self.indent[:-4]
 
     def add(self, lineno, code, token='statement'):
@@ -776,7 +774,7 @@ class BlockBuilder(list):
                 self[-1] += '; '
             self[-1] += code
         self.lineno = lineno + code.count('\n')
-        return True
+        return self     # Convenient for the context manager API
 
     def build_block(self, nodes):
         for lineno, token, value in nodes:
@@ -852,8 +850,7 @@ class BlockBuilder(list):
             error = ("The compound statement '%s' is not allowed here. "
                      "Add a line before it with %%#ignore.\n\n%s\n"
                      "    %%#ignore\n    %%%s ..." % (token, stmt, token))
-            self.add(lineno, stmt)
-            with self:
+            with self.add(lineno, stmt):
                 return self.add(lineno, 'raise SyntaxError(%r)' % error)
 
     def build_def_single_markup(self, lineno, value, token):
@@ -871,16 +868,14 @@ class BlockBuilder(list):
             value = repr(value)
         else:
             ln, value = lineno, "''"
-        self.add(lineno, stmt)
-        with self:
+        with self.add(lineno, stmt):
             self.add(ln, "return " + value)
         return self.add(ln + 1, setdefs('?', stmt[4:stmt.index('(', 5)]))
 
     def build_def(self, lineno, value, token):
         assert token == 'def'
         stmt, nodes = value
-        self.add(lineno, stmt)
-        with self:
+        with self.add(lineno, stmt):
             self.add(lineno + 1, self.writer_declare)
             self.build_block(nodes)
             ln = self.lineno
@@ -906,8 +901,7 @@ class BlockBuilder(list):
     def build_compound(self, lineno, value, token):
         assert token in COMPOUND_TOKENS
         stmt, nodes = value
-        self.add(lineno, stmt)
-        with self:
+        with self.add(lineno, stmt):
             return self.build_block(nodes)
 
     def build_require(self, lineno, values, token):
