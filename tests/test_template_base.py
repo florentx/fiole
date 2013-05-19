@@ -95,7 +95,8 @@ class ParserTestCase(unittest.TestCase):
         ]
         nodes = self.parse(tokens)
         self.assertEqual(len(nodes), 4)
-        self.assertEqual(nodes[0], (1, 'out', [(1, 'include', 11), (2, 'var', 12)]))
+        self.assertEqual(nodes[0], (1, 'out',
+                                    [(1, 'include', 11), (2, 'var', 12)]))
         self.assertEqual(nodes[2], (4, 'out', [(4, 'var', 14)]))
 
         tokens = [
