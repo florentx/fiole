@@ -143,7 +143,7 @@ def _decode_signed_value(secret, name, value, max_age_days=31):
         return  # Expired
     signature = _create_signature(secret, name, parts[0], parts[1])
     if compare_digest(parts[2], signature):
-        return base64.b64decode(parts[0]).decode('utf-8')
+        return base64.b64decode(parts[0].encode('ascii')).decode('utf-8')
 
 
 def _create_signature(secret, *parts):

@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from fiole import *
 
+u = str if (''.encode() != '') else lambda s: s.decode('utf-8')
+
 
 @get('/ct')
 def ct(request):
@@ -31,7 +33,7 @@ def test_redirect(request):
 
 @get('/unicode')
 def unicode(request):
-    return u'Works with Unîcødé too!'
+    return u('Works with Unîcødé too!')
 
 
 # Cookies
@@ -49,7 +51,7 @@ def receive_cookies(request):
 @get('/send')
 def send_cookie(request):
     response = Response('<a href="/receive">Check your cookies.</a>')
-    response.set_cookie('foo', u'bär')
+    response.set_cookie('foo', u('bär'))
     response.set_cookie('session', 'asdfjlasdfjsdfkjgsdfogd')
     return response
 
@@ -57,7 +59,7 @@ def send_cookie(request):
 @get('/send_secure')
 def send_secure_cookie(request):
     response = Response('<a href="/receive">Check your cookies.</a>')
-    response.set_secure_cookie('foo', u'bär')
+    response.set_secure_cookie('foo', u('bär'))
     return response
 
 
