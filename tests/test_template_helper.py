@@ -77,6 +77,15 @@ class TemplateHelperTestCase(unittest.TestCase):
         self.assertEqual(template.render(ctx, dummy=42), result)
         self.assertEqual(template.render(dummy=42, **ctx), result)
 
+    def test_render_template_empty(self):
+        master_template = get_template('master', source="")
+        tmpl = '%extends("master")\n'
+
+        self.assertEqual(master_template.render(), '')
+        self.assertEqual(render_template(source=''), '')
+        self.assertEqual(render_template(source=tmpl), '')
+        self.assertEqual(get_template(source=tmpl).render(), '')
+
     def test_render_template_require(self):
         tmpl = "Welcome, {{username}}!"
         result = 'Welcome, John!'
@@ -95,3 +104,17 @@ class TemplateHelperTestCase(unittest.TestCase):
 
         self.assertRaises(KeyError, render_template, source=tmpl)
         self.assertRaises(KeyError, render_template, source=tmpl, dummy=42)
+
+    def test_render_template_extends(self):
+        get_template(
+            'master',
+            source="%def hello():\n%end\n{{ hello() }}{{ name }}!",
+            require=['name'])
+        tmpl = '%extends("master")\n%def hello():\nWelcome, \\\n%end'
+        result = 'Welcome, John!'
+
+        self.assertEqual(render_template(source=tmpl, name='John'), result)
+        self.assertEqual(get_template(source=tmpl).render(name='John'), result)
+
+        template = get_template(source=tmpl, require=['name'])
+        self.assertEqual(template.render(name='John'), result)

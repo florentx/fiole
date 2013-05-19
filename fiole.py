@@ -812,9 +812,9 @@ class BlockBuilder(list):
 
     def build_extends(self, lineno, nodes, token):
         assert token == 'render'
-        if len(nodes) != 1:
+        if len(nodes) not in (1, 2):    # Ignore 'require' before 'extends'
             return
-        lineno, token, value = nodes[0]
+        lineno, token, value = nodes[-1]
         if token != 'extends':
             return
         extends, nodes = value
