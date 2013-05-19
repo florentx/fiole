@@ -33,22 +33,19 @@ HTTP_CODES[428] = "Precondition Required"
 HTTP_CODES[429] = "Too Many Requests"
 HTTP_CODES[431] = "Request Header Fields Too Large"
 HTTP_CODES[511] = "Network Authentication Required"
-COOKIE_SECRET = None
-REQUEST_RULES = []
-ERROR_HANDLERS = {}
+SECRET_KEY = None
 
 __version__ = '0.1a0'
 __all__ = ['HTTPError', 'BadRequest', 'Forbidden', 'NotFound',  # HTTP errors
            'MethodNotAllowed', 'InternalServerError', 'Redirect',
-           # Base classes and static file helper
-           'HTTPHeaders', 'EnvironHeaders', 'Request', 'Response', 'send_file',
-           # Decorators
+           # Base classes
+           'HTTPHeaders', 'EnvironHeaders', 'Request', 'Response', 'Fiole',
+           # Default application, decorators and static file helper
+           'default_app', 'get_app', 'send_file', 'run_fiole',
            'route', 'get', 'post', 'put', 'delete', 'errorhandler',
            # Template engine
            'Loader', 'Lexer', 'Parser', 'BlockBuilder', 'Engine', 'Template',
-           'engine', 'get_template', 'render_template',
-           # WSGI application
-           'handle_request', 'run_fiole']
+           'engine', 'get_template', 'render_template']
 
 
 # Exceptions
@@ -360,7 +357,7 @@ class Request(object):
         """Return the given signed cookie if it validates, or None."""
         if value is None:
             value = self.get_cookie(name)
-        return _decode_signed_value(COOKIE_SECRET, name, value,
+        return _decode_signed_value(SECRET_KEY, name, value,
                                     max_age_days=max_age_days)
 
     def build_get_dict(self):
@@ -443,7 +440,7 @@ class Response(object):
 
     def create_signed_value(self, name, value):
         """Sign and timestamp a string so it cannot be forged."""
-        return _create_signed_value(COOKIE_SECRET, name, value)
+        return _create_signed_value(SECRET_KEY, name, value)
 
     def send(self, environ, start_response):
         status = "%d %s" % (self.status, HTTP_CODES.get(self.status))
@@ -457,129 +454,149 @@ class Response(object):
         return output if (environ['REQUEST_METHOD'] != 'HEAD') else ()
 
 
-def handle_request(environ, start_response):
-    """The main handler.  Dispatch to the user's code."""
-    try:
-        request = Request(environ)
-        (callback, kwargs, status) = find_matching_url(request)
-        response = callback(request, **kwargs)
-    except Exception as exc:
-        (response, status) = handle_error(exc, environ)
-    if not isinstance(response, Response):
-        response = Response(response, status=status)
-    return response.send(environ, start_response)
+class Fiole(object):
+    """Web Application."""
+    _stack = []
+
+    def __init__(self):
+        self.routes = []
+        self.error_handlers = {302: http_302_found}
+        self.static_folder = STATIC_FOLDER
+
+    @classmethod
+    def push(cls, app=None):
+        cls._stack.append(app or cls())
+        return cls._stack[-1]
+
+    @classmethod
+    def pop(cls, index=-1):
+        return cls._stack.pop(index)
+
+    def handle_request(self, environ, start_response):
+        """The main handler.  Dispatch to the user's code."""
+        try:
+            request = Request(environ)
+            (callback, kwargs, status) = self.find_matching_url(request)
+            response = callback(request, **kwargs)
+        except Exception as exc:
+            (response, status) = self.handle_error(exc, environ)
+        if not isinstance(response, Response):
+            response = Response(response, status=status)
+        return response.send(environ, start_response)
+
+    def handle_error(self, exception, environ, level=0):
+        """Deal with the exception and present an error page."""
+        if not getattr(exception, 'hide_traceback', False):
+            environ['wsgi.errors'].write("%s occurred on '%s': %s\n%s" % (
+                exception.__class__.__name__, environ['PATH_INFO'],
+                exception, traceback.format_exc()))
+        status = getattr(exception, 'status', 500)
+        handler = (self.error_handlers.get(status) or
+                   self.default_error_handler(status))
+        try:
+            return handler(exception), status
+        except Exception as exc:
+            if level > 3:
+                raise
+            return self.handle_error(exc, environ, level + 1)
+
+    def find_matching_url(self, request):
+        """Search through the methods registered."""
+        allowed_methods = set()
+        for (regex, re_match, methods, callback, status) in self.routes:
+            m = re_match(request.path)
+            if m:
+                if request.method in methods:
+                    return (callback, m.groupdict(), status)
+                allowed_methods.update(methods)
+        if allowed_methods:
+            raise MethodNotAllowed("The HTTP request method '%s' is "
+                                   "not supported." % request.method)
+        raise NotFound("Sorry, nothing here.")
+
+    def send_file(self, request, filename, root=None, content_type=None,
+                  buffer_size=64 * 1024):
+        """Fetch a static file from the filesystem."""
+        if not filename:
+            raise Forbidden("You must specify a file you'd like to access.")
+
+        # Strip the '/' from the beginning/end and prevent jailbreak.
+        valid_path = os.path.normpath(filename).strip('./')
+        desired_path = os.path.join(root or self.static_folder, valid_path)
+
+        if os.path.isabs(valid_path) or not os.path.exists(desired_path):
+            raise NotFound("File does not exist.")
+        if not os.access(desired_path, os.R_OK):
+            raise Forbidden("You do not have permission to access this file.")
+        stat = os.stat(desired_path)
+        headers = {'Content-Length': str(stat.st_size),
+                   'Last-Modified': format_timestamp(stat.st_mtime)}
+
+        if not content_type:
+            content_type = mimetypes.guess_type(filename)[0] or 'text/plain'
+        file_wrapper = request.environ.get('wsgi.file_wrapper', FileWrapper)
+        fobj = file_wrapper(open(desired_path, 'rb'), buffer_size)
+        return Response(fobj, headers=headers, content_type=content_type,
+                        wrapped=True)
+
+    def default_error_handler(self, code):
+        def error_handler(exception):
+            return Response(message, status=code, content_type='text/plain')
+        message = HTTP_CODES[code]
+        self.error_handlers[code] = error_handler
+        return error_handler
+
+    # Decorators
+
+    def route(self, url, methods=('GET',), callback=None, status=200):
+        def decorator(func):
+            self.routes.append((url, _url_matcher(url), methods, func, status))
+            return func
+        return decorator(callback) if callback else decorator
+
+    def get(self, url):
+        """Register a method as capable of processing GET requests."""
+        return self.route(url, methods=('GET', 'HEAD'))
+
+    def post(self, url):
+        """Register a method as capable of processing POST requests."""
+        return self.route(url, methods=('POST',))
+
+    def put(self, url):
+        """Register a method as capable of processing PUT requests."""
+        return self.route(url, methods=('PUT',), status=201)
+
+    def delete(self, url):
+        """Register a method as capable of processing DELETE requests."""
+        return self.route(url, methods=('DELETE',))
+
+    def errorhandler(self, code):
+        """Register a method for processing errors of a certain HTTP code."""
+        def decorator(func):
+            self.error_handlers[code] = func
+            return func
+        return decorator
 
 
-def handle_error(exception, environ, level=0):
-    """If an exception is thrown, deal with it and present an error page."""
-    if not getattr(exception, 'hide_traceback', False):
-        environ['wsgi.errors'].write("%s occurred on '%s': %s\n%s" % (
-            exception.__class__.__name__, environ['PATH_INFO'],
-            exception, traceback.format_exc()))
-    status = getattr(exception, 'status', 500)
-    handler = ERROR_HANDLERS.get(status) or default_error_handler(status)
-    try:
-        return handler(exception), status
-    except Exception as exc:
-        if level > 3:
-            raise
-        return handle_error(exc, environ, level + 1)
-
-
-def find_matching_url(request):
-    """Search through the methods registered."""
-    allowed_methods = set()
-    for (regex, re_match, methods, callback, status) in REQUEST_RULES:
-        m = re_match(request.path)
-        if m:
-            if request.method in methods:
-                return (callback, m.groupdict(), status)
-            allowed_methods.update(methods)
-    if allowed_methods:
-        raise MethodNotAllowed("The HTTP request method '%s' is "
-                               "not supported." % request.method)
-    raise NotFound("Sorry, nothing here.")
-
-
-# Serve static file
-
-def send_file(request, filename, root=STATIC_FOLDER,
-              content_type=None, buffer_size=64 * 1024):
-    """Fetch a static file from the filesystem."""
-    if not filename:
-        raise Forbidden("You must specify a file you'd like to access.")
-
-    # Strip the '/' from the beginning/end and prevent jailbreak.
-    valid_path = os.path.normpath(filename).strip('./')
-    desired_path = os.path.join(root, valid_path)
-
-    if os.path.isabs(valid_path) or not os.path.exists(desired_path):
-        raise NotFound("File does not exist.")
-    if not os.access(desired_path, os.R_OK):
-        raise Forbidden("You do not have permission to access this file.")
-    stat = os.stat(desired_path)
-    headers = {'Content-Length': str(stat.st_size),
-               'Last-Modified': format_timestamp(stat.st_mtime)}
-
-    if not content_type:
-        content_type = mimetypes.guess_type(filename)[0] or 'text/plain'
-    file_wrapper = request.environ.get('wsgi.file_wrapper', FileWrapper)
-    fobj = file_wrapper(open(desired_path, 'rb'), buffer_size)
-    return Response(fobj, headers=headers, content_type=content_type,
-                    wrapped=True)
-
-
-# Decorators
-
-def route(url, methods=('GET',), callback=None, status=200):
-    def decorator(func):
-        REQUEST_RULES.append((url, _url_matcher(url), methods, func, status))
-        return func
-    return decorator(callback) if callback else decorator
-
-
-def get(url):
-    """Register a method as capable of processing GET requests."""
-    return route(url, methods=('GET', 'HEAD'))
-
-
-def post(url):
-    """Register a method as capable of processing POST requests."""
-    return route(url, methods=('POST',))
-
-
-def put(url):
-    """Register a method as capable of processing PUT requests."""
-    return route(url, methods=('PUT',), status=201)
-
-
-def delete(url):
-    """Register a method as capable of processing DELETE requests."""
-    return route(url, methods=('DELETE',))
-
-
-def errorhandler(code):
-    """Register a method for processing errors of a certain HTTP code."""
-    def decorator(func):
-        ERROR_HANDLERS[code] = func
-        return func
-    return decorator
-
-
-# Error handlers
-
-def default_error_handler(code):
-    def error_handler(exception):
-        return Response(message, status=code, content_type='text/plain')
-    message = HTTP_CODES[code]
-    ERROR_HANDLERS[code] = error_handler
-    return error_handler
-
-
-@errorhandler(302)
 def http_302_found(exception):
     return Response('', status=302, content_type='text/plain',
                     headers=[('Location', exception.url)])
+
+
+def _make_app_wrapper(name):
+    @wraps(getattr(Fiole, name))
+    def wrapper(*args, **kwargs):
+        return getattr(Fiole._stack[-1], name)(*args, **kwargs)
+    return wrapper
+send_file = _make_app_wrapper('send_file')
+route = _make_app_wrapper('route')
+get = _make_app_wrapper('get')
+post = _make_app_wrapper('post')
+put = _make_app_wrapper('put')
+delete = _make_app_wrapper('delete')
+errorhandler = _make_app_wrapper('errorhandler')
+get_app = lambda: Fiole._stack[-1]
+default_app = Fiole.push()
 
 
 # The template engine
@@ -1037,31 +1054,31 @@ def render_template(template_name=None, source=None, **context):
 
 # The WSGI HTTP server
 
-def wsgiref_adapter(host, port):
+def wsgiref_adapter(host, port, handler):
     from wsgiref.simple_server import make_server
-    srv = make_server(host, port, handle_request)
+    srv = make_server(host, port, handler)
     srv.serve_forever()
 
 WSGI_ADAPTERS = {'wsgiref': wsgiref_adapter}
 
 
-def run_fiole(server='wsgiref', host=None, port=None, secret_key=None):
+def run_fiole(app=None, server='wsgiref', host=None, port=None, secret=None):
     """Run the fiole web server."""
-    global COOKIE_SECRET
-    COOKIE_SECRET = secret_key or base64.b64encode(os.urandom(32))
+    global SECRET_KEY
+    SECRET_KEY = secret or base64.b64encode(os.urandom(32))
 
     if server not in WSGI_ADAPTERS:
         raise RuntimeError("Server '%s' is not a valid server.  "
                            "Please choose a different server." % server)
 
-    assert REQUEST_RULES, "No route defined"
+    assert (app or default_app).routes, "No route defined"
     host = host or DEFAULT_BIND['host']
     port = int(port or DEFAULT_BIND['port'])
     print('`fiole` starting up (using %s)...\nListening on http://%s:%s...\n'
           'Use Ctrl-C to quit.\n' % (server, host, port))
 
     try:
-        WSGI_ADAPTERS[server](host, port)
+        WSGI_ADAPTERS[server](host, port, (app or default_app).handle_request)
     except KeyboardInterrupt:
         print('\nShutting down.  Have a nice day!')
         raise SystemExit(0)

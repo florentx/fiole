@@ -9,15 +9,15 @@ from ._common import (ENVIRON, handle_single_request,
 
 
 class FioleTestCase(unittest.TestCase):
-    _default_error_handlers = {302: fiole.http_302_found}
-    _cookie_secret = fiole.COOKIE_SECRET
+    _cookie_secret = fiole.SECRET_KEY
 
     def setUp(self):
-        del fiole.REQUEST_RULES[:]
-        fiole.ERROR_HANDLERS.clear()
-        fiole.ERROR_HANDLERS.update(self._default_error_handlers)
-        fiole.COOKIE_SECRET = self._cookie_secret
-    tearDown = setUp
+        fiole.Fiole.push()
+        fiole.SECRET_KEY = self._cookie_secret
+
+    def tearDown(self):
+        fiole.Fiole.pop()
+        fiole.SECRET_KEY = self._cookie_secret
 
     def test_simple(self):
         @fiole.get('/')
@@ -305,7 +305,7 @@ class FioleTestCase(unittest.TestCase):
         self.assertFalse(rv['errors'])
 
     def test_secure_cookie(self):
-        fiole.COOKIE_SECRET = 's e c r e t'
+        fiole.SECRET_KEY = 's e c r e t'
 
         @fiole.get('/receive')
         def receive_cookies(request):

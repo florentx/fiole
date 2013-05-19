@@ -11,21 +11,21 @@ fiole.TEMPLATE_FOLDER = os.path.join(EXAMPLES_DIR, 'templates')
 
 def empty_fiole():
     """Empty the fiole."""
-    fiole.REQUEST_RULES[:] = DEFAULT_REQUEST_RULES
-    fiole.ERROR_HANDLERS = dict(DEFAULT_ERROR_HANDLERS)
-    fiole.engine.global_vars = dict(DEFAULT_GLOBAL_VARS)
+    default_app.routes[:] = DEFAULT_ROUTES
+    default_app.error_handlers = dict(DEFAULT_ERROR_HANDLERS)
+    engine.global_vars = dict(DEFAULT_GLOBAL_VARS)
     LOADED_EXAMPLE[0] = '__init__'
 
 
 def set_default_root():
     """Set the route to /, if it is not configured."""
-    if fiole.REQUEST_RULES == DEFAULT_REQUEST_RULES:
+    if default_app.routes == DEFAULT_ROUTES:
         @get('/')
         def route_home(request):
             qs = '?' + request.query if request.query else ''
             raise Redirect('/examples' + qs)
     else:
-        for (__, re_match, methods, __, __) in fiole.REQUEST_RULES:
+        for (__, re_match, methods, __, __) in default_app.routes:
             if re_match('/') and 'GET' in methods:
                 return
         route('/', ('GET',), list_routes)
@@ -54,7 +54,7 @@ def list_routes(request):
     """List the routes configured."""
     set_default_root()
     return render_template('examples-rules.tmpl',
-                           name=LOADED_EXAMPLE[0], rules=fiole.REQUEST_RULES)
+                           name=LOADED_EXAMPLE[0], rules=default_app.routes)
 
 
 @get('/view_source')
@@ -95,15 +95,15 @@ def http_favicon(request):
     return Response('', headers=headers, content_type='image/x-icon')
 
 # Save the default configuration for ``empty_fiole()``
-DEFAULT_ERROR_HANDLERS = dict(fiole.ERROR_HANDLERS)
-DEFAULT_REQUEST_RULES = list(fiole.REQUEST_RULES)
+DEFAULT_ERROR_HANDLERS = dict(default_app.error_handlers)
+DEFAULT_ROUTES = list(default_app.routes)
 DEFAULT_GLOBAL_VARS = dict(fiole.engine.global_vars)
 
 
 @errorhandler(404)
 def volatile_not_found(request):
     """Volatile error handler to fix the default root on first NotFound."""
-    fiole.ERROR_HANDLERS.pop(404)
+    default_app.error_handlers.pop(404)
     set_default_root()
     raise Redirect('/')
 

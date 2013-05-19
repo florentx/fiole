@@ -94,6 +94,6 @@ def handle_single_request(environ, **kw):
         environ.update(kw)
     environ['wsgi.errors'] = WSGIErrors(rv)
     start_response = StartResponse(rv)
-    rv['data'] = fiole.handle_request(environ, start_response)
+    rv['data'] = fiole.get_app().handle_request(environ, start_response)
     assert 'status' in rv
     return rv
