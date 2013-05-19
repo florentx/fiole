@@ -14,4 +14,6 @@ script:
   - unit2 discover
 matrix:
   allow_failures:
-    - python: 3.2 3.3 pypy
+    - python: 3.2
+    - python: 3.3
+    - python: pypy
