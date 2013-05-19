@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
-from cStringIO import StringIO
 import os.path
 import unittest
+try:
+    from cStringIO import StringIO as BytesIO
+except ImportError:
+    from io import BytesIO
 
 import fiole
-from ._common import (ENVIRON, handle_single_request,
+from ._common import (PY3, ENVIRON, handle_single_request,
                       FORM_DATA_CONTENT_TYPE, FORM_DATA_1, FORM_DATA_2)
 
 
@@ -19,18 +22,22 @@ class FioleTestCase(unittest.TestCase):
         fiole.Fiole.pop()
         fiole.SECRET_KEY = self._cookie_secret
 
+    def assertNoError(self, response):
+        self.assertFalse(response['errors'], msg=response['errors'])
+        self.assertEqual(response['status'], '200 OK')
+
     def test_simple(self):
         @fiole.get('/')
         def index(request):
             return 'Hello World!'
         rv = handle_single_request('GET /')
-        self.assertEqual(rv['status'], '200 OK')
-        self.assertEqual(rv['data'], ['Hello World!'])
+        self.assertNoError(rv)
+        self.assertEqual(rv['data'], [b'Hello World!'])
         self.assertEqual(rv, {
             'status': '200 OK',
             'headers': [('Content-Type', 'text/html; charset=utf-8'),
                         ('Content-Length', '12')],
-            'data': ['Hello World!'],
+            'data': [b'Hello World!'],
             'errors': '',
         })
 
@@ -45,21 +52,21 @@ class FioleTestCase(unittest.TestCase):
             return request.method
 
         rv = handle_single_request('GET /')
-        self.assertEqual(rv['status'], '200 OK')
-        self.assertEqual(rv['data'], ['GET'])
+        self.assertNoError(rv)
+        self.assertEqual(rv['data'], [b'GET'])
 
         rv = handle_single_request('POST /')
         self.assertEqual(rv['status'], '405 Method Not Allowed')
 
         rv = handle_single_request('HEAD /')
-        self.assertEqual(rv['status'], '200 OK')
+        self.assertNoError(rv)
         self.assertFalse(rv['data'])
 
         rv = handle_single_request('POST /more')
-        self.assertEqual(rv['data'], ['POST'])
+        self.assertEqual(rv['data'], [b'POST'])
 
         rv = handle_single_request('GET /more')
-        self.assertEqual(rv['data'], ['GET'])
+        self.assertEqual(rv['data'], [b'GET'])
 
         rv = handle_single_request('DELETE /more')
         self.assertEqual(rv['status'], '405 Method Not Allowed')
@@ -70,7 +77,7 @@ class FioleTestCase(unittest.TestCase):
             return u'%s à %s' % (_mot_, v_42)
 
         rv = handle_single_request(u'GET /table/à/manger')
-        self.assertEqual(rv['status'], '200 OK')
+        self.assertNoError(rv)
         self.assertEqual(rv['data'], [u'table à manger'.encode('utf-8')])
 
     def test_request_route_regex(self):
@@ -80,8 +87,8 @@ class FioleTestCase(unittest.TestCase):
             return '%d + %d = %d' % (a, b, a + b)
 
         rv = handle_single_request(u'GET /25/plus/17/')
-        self.assertEqual(rv['status'], '200 OK')
-        self.assertEqual(rv['data'], ['25 + 17 = 42'])
+        self.assertNoError(rv)
+        self.assertEqual(rv['data'], [b'25 + 17 = 42'])
 
         rv = handle_single_request(u'GET /navet/plus/tomate/')
         self.assertEqual(rv['status'], '404 Not Found')
@@ -105,11 +112,11 @@ class FioleTestCase(unittest.TestCase):
 
         rv = handle_single_request('GET /')
         self.assertEqual(rv['status'], '404 Not Found')
-        self.assertEqual(rv['data'], ['not found'])
+        self.assertEqual(rv['data'], [b'not found'])
         self.assertFalse(rv['errors'])
         rv = handle_single_request('GET /error')
         self.assertEqual(rv['status'], '500 Internal Server Error')
-        self.assertEqual(rv['data'], ['internal server error'])
+        self.assertEqual(rv['data'], [b'internal server error'])
         self.assertIn('ZeroDivisionError', rv['errors'])
 
     def test_user_error_handling(self):
@@ -127,7 +134,7 @@ class FioleTestCase(unittest.TestCase):
             raise MyException()
         rv = handle_single_request('GET /')
         self.assertEqual(rv['status'], '500 Internal Server Error')
-        self.assertEqual(rv['data'], ['42'])
+        self.assertEqual(rv['data'], [b'42'])
         self.assertIn('MyException', rv['errors'])
 
     def test_response(self):
@@ -155,7 +162,7 @@ class FioleTestCase(unittest.TestCase):
             'headers': [('X-Foo', 'Testing'),
                         ('Content-Type', 'text/plain; charset=utf-8'),
                         ('Content-Length', '3')],
-            'data': ['Meh'],
+            'data': [b'Meh'],
             'errors': '',
         })
 
@@ -182,8 +189,8 @@ class FioleTestCase(unittest.TestCase):
             return
 
         rv = handle_single_request('GET /')
-        self.assertEqual(rv['status'], '200 OK')
-        self.assertEqual(rv['data'], [''])
+        self.assertNoError(rv)
+        self.assertEqual(rv['data'], [b''])
 
     def test_redirect(self):
 
@@ -193,7 +200,7 @@ class FioleTestCase(unittest.TestCase):
 
         rv = handle_single_request('GET /')
         self.assertEqual(rv['status'], '302 Found')
-        self.assertEqual(rv['data'], [''])
+        self.assertEqual(rv['data'], [b''])
         self.assertIn(('Location', '/far'), rv['headers'])
 
     def test_redirect_error_handler(self):
@@ -208,7 +215,7 @@ class FioleTestCase(unittest.TestCase):
 
         rv = handle_single_request('GET /')
         self.assertEqual(rv['status'], '302 Found')
-        self.assertEqual(rv['data'], [''])
+        self.assertEqual(rv['data'], [b''])
         self.assertIn(('Location', '/far'), rv['headers'])
         # Is it correct?
         self.assertIn('ZeroDivisionError', rv['errors'])
@@ -219,7 +226,7 @@ class FioleTestCase(unittest.TestCase):
             'REQUEST_METHOD': 'POST',
             'CONTENT_TYPE': FORM_DATA_CONTENT_TYPE,
             'CONTENT_LENGTH': len(FORM_DATA_1),
-            'wsgi.input': StringIO(FORM_DATA_1),
+            'wsgi.input': BytesIO(FORM_DATA_1),
         })
         request = fiole.Request(environ)
         self.assertFalse(request.GET)
@@ -228,9 +235,9 @@ class FioleTestCase(unittest.TestCase):
         self.assertEqual(request.POST['submit-name'], 'Larry')
         self.assertEqual(request.POST['files'].filename, 'file1.txt')
         self.assertEqual(request.POST['files'].file.read(),
-                         '... contents of file1.txt ...')
+                         b'... contents of file1.txt ...')
         self.assertEqual(request.POST['files'].value,
-                         '... contents of file1.txt ...')
+                         b'... contents of file1.txt ...')
         self.assertEqual(request.POST['files'].type, 'text/plain')
         self.assertEqual(request.POST['files'].disposition, 'form-data')
 
@@ -240,7 +247,7 @@ class FioleTestCase(unittest.TestCase):
             'REQUEST_METHOD': 'POST',
             'CONTENT_LENGTH': len(FORM_DATA_2),
             'CONTENT_TYPE': FORM_DATA_CONTENT_TYPE,
-            'wsgi.input': StringIO(FORM_DATA_2),
+            'wsgi.input': BytesIO(FORM_DATA_2),
         })
         request = fiole.Request(environ)
         self.assertFalse(request.GET)
@@ -251,12 +258,12 @@ class FioleTestCase(unittest.TestCase):
         self.assertEqual(sorted(files), ['file1.txt', 'file2.gif'])
 
         self.assertEqual(files['file1.txt'].value,
-                         '... contents of file1.txt ...')
+                         b'... contents of file1.txt ...')
         self.assertEqual(files['file1.txt'].type, 'text/plain')
         self.assertEqual(files['file1.txt'].disposition, 'file')
 
         self.assertEqual(files['file2.gif'].value,
-                         '...contents of file2.gif...')
+                         b'...contents of file2.gif...')
         self.assertEqual(files['file2.gif'].type, 'image/gif')
         self.assertEqual(files['file2.gif'].disposition, 'file')
 
@@ -269,7 +276,7 @@ class FioleTestCase(unittest.TestCase):
         environ = {
             'CONTENT_TYPE': FORM_DATA_CONTENT_TYPE,
             'CONTENT_LENGTH': len(FORM_DATA_1),
-            'wsgi.input': StringIO(FORM_DATA_1),
+            'wsgi.input': BytesIO(FORM_DATA_1),
         }
         rv = handle_single_request('GET /upload', **environ)
         self.assertEqual(rv['status'], '405 Method Not Allowed')
@@ -278,8 +285,8 @@ class FioleTestCase(unittest.TestCase):
         self.assertEqual(rv['status'], '404 Not Found')
 
         rv = handle_single_request('POST /upload', **environ)
-        self.assertEqual(rv['status'], '200 OK')
-        self.assertEqual(rv['data'], ['42'])
+        self.assertNoError(rv)
+        self.assertEqual(rv['data'], [b'42'])
         self.assertEqual(rv['headers'],
                          [('Content-Type', 'text/html; charset=utf-8'),
                           ('Content-Length', '2')])
@@ -287,29 +294,48 @@ class FioleTestCase(unittest.TestCase):
 
     def test_cookie(self):
 
+        @fiole.get('/receive')
+        def receive_cookies(request):
+            cookies = [request.get_cookie(name)
+                       for name in sorted(request.cookies)]
+            content = cookies
+            response = fiole.Response(content, content_type='text/plain',
+                                      wrapped=True)
+            return response
+
         @fiole.get('/send')
         def send_cookie(request):
             response = fiole.Response('+ empty +')
-            response.set_cookie('nickname', 'gaston')
+            response.set_cookie('nickname', u'gästõn')
             response.set_cookie('session', 'czpwoe83q8ape2ji23jxnm')
             return response
 
+        gaston = r'g\344st\365n' if PY3 else r'g\303\244st\303\265n'
         # Send cookie
         rv = handle_single_request('GET /send')
-        self.assertEqual(rv['status'], '200 OK')
-        self.assertEqual(rv['headers'], [
-            ('Content-Type', 'text/html; charset=utf-8'),
+        self.assertNoError(rv)
+        self.assertEqual(sorted(rv['headers']), [
             ('Content-Length', '9'),
+            ('Content-Type', 'text/html; charset=utf-8'),
+            ('Set-Cookie', 'nickname="%s"; Path=/' % gaston),
             ('Set-Cookie', 'session=czpwoe83q8ape2ji23jxnm; Path=/'),
-            ('Set-Cookie', 'nickname=gaston; Path=/')])
-        self.assertFalse(rv['errors'])
+        ])
+        cookies = [v.split(';')[0]
+                   for (k, v) in rv['headers'] if k == 'Set-Cookie']
+        cookie = '; '.join(cookies)
+
+        # Receive cookies
+        rv = handle_single_request('GET /receive', HTTP_COOKIE=cookie)
+        self.assertNoError(rv)
+        self.assertEqual([h for (h, v) in rv['headers']], ['Content-Type'])
+        self.assertEqual(rv['data'], ['gästõn', 'czpwoe83q8ape2ji23jxnm'])
 
     def test_secure_cookie(self):
         fiole.SECRET_KEY = 's e c r e t'
 
         @fiole.get('/receive')
         def receive_cookies(request):
-            cookies = [name + '=' + request.get_cookie(name)
+            cookies = ['%s="%s"' % (name, request.get_cookie(name))
                        for name in request.cookies]
             secure_cookie = request.get_secure_cookie('foo')
             content = cookies + [secure_cookie]
@@ -320,7 +346,7 @@ class FioleTestCase(unittest.TestCase):
         @fiole.get('/send_secure')
         def send_secure_cookie(request):
             response = fiole.Response('+ empty +')
-            response.set_secure_cookie('foo', 'bar')
+            response.set_secure_cookie('foo', u'bär')
             return response
 
         @fiole.get('/clear')
@@ -332,26 +358,27 @@ class FioleTestCase(unittest.TestCase):
 
         # Send secure cookie
         rv = handle_single_request('GET /send_secure')
-        self.assertEqual(rv['status'], '200 OK')
+        self.assertNoError(rv)
         self.assertEqual([h for (h, v) in rv['headers']],
                          ['Content-Type', 'Content-Length', 'Set-Cookie'])
         cookie, expires, path = rv['headers'][2][1].split('; ')
-        self.assertEqual(cookie[:9], 'foo=YmFy|')
+        cookie_kv = cookie.split('|')[0]
+        self.assertEqual(cookie_kv, 'foo="YsOkcg==')
         self.assertEqual(expires[:8], 'expires=')
         self.assertEqual(path, 'Path=/')
 
         # Receive cookies
         rv = handle_single_request('GET /receive', HTTP_COOKIE=cookie)
-        self.assertEqual(rv['status'], '200 OK')
+        self.assertNoError(rv)
         self.assertEqual([h for (h, v) in rv['headers']], ['Content-Type'])
         (raw_cookie, secure_cookie) = rv['data']
         self.assertEqual(raw_cookie, cookie)
-        self.assertEqual(secure_cookie, 'bar')
+        self.assertEqual(secure_cookie, u'bär')
 
         # Clear cookies
         cookie = 'nickname=gaston; ' + cookie
         rv = handle_single_request('GET /clear', HTTP_COOKIE=cookie)
-        self.assertEqual(rv['status'], '200 OK')
+        self.assertNoError(rv)
         self.assertEqual([h for (h, v) in rv['headers']],
                          ['Content-Type', 'Content-Length',
                           'Set-Cookie', 'Set-Cookie'])
@@ -364,7 +391,7 @@ class FioleTestCase(unittest.TestCase):
         self.assertEqual(path2, 'Path=/')
 
     def test_send_file(self):
-        fname = os.path.splitext(__file__)[0] + '.py'
+        fname = os.path.join(os.path.dirname(__file__), '__init__.py')
         rootdir, fname = os.path.split(fname)
 
         @fiole.get('/img/logo.png')
@@ -372,8 +399,10 @@ class FioleTestCase(unittest.TestCase):
             return fiole.send_file(request, fname, root=rootdir)
 
         rv = handle_single_request('GET /img/logo.png')
-        self.assertEqual(rv['status'], '200 OK')
-        self.assertFalse(rv['errors'])
-        data = ''.join([chunk for chunk in rv['data']])
-        with open(os.path.join(rootdir, fname)) as f:
-            self.assertEqual(data, f.read())
+        try:
+            self.assertNoError(rv)
+            data = b''.join([chunk for chunk in rv['data']])
+            with open(os.path.join(rootdir, fname), 'rb') as f:
+                self.assertEqual(data, f.read())
+        finally:
+            rv['data'].close()

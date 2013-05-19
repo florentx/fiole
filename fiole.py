@@ -7,7 +7,6 @@ License: BSD (see LICENSE for details)
 import ast
 import base64
 import cgi
-import Cookie
 import hashlib
 import hmac
 import imp
@@ -16,14 +15,25 @@ import os
 import re
 import time
 import traceback
-from cStringIO import StringIO
 from datetime import datetime, timedelta
 from email.utils import formatdate
 from functools import wraps
-from httplib import responses as HTTP_CODES
 from threading import Lock
-from urlparse import parse_qs
 from wsgiref.util import FileWrapper
+try:                  # Python 3
+    from http.client import responses as HTTP_CODES
+    from http.cookies import SimpleCookie
+    from io import BytesIO
+    from urllib.parse import parse_qs
+    unicode = str
+    recode = lambda s: s.encode('iso-8859-1').decode('utf-8')
+except ImportError:   # Python 2
+    from httplib import responses as HTTP_CODES
+    from Cookie import SimpleCookie
+    from cStringIO import StringIO as BytesIO
+    from urlparse import parse_qs
+    unicode = unicode
+    recode = lambda s: s.decode('utf-8')
 
 DEFAULT_BIND = {'host': '127.0.0.1', 'port': 8080}
 STATIC_FOLDER = os.path.join(os.path.dirname(__file__), 'static')
@@ -119,21 +129,21 @@ def compare_digest(a, b):
 
 
 def _create_signed_value(secret, name, value):
-    value = base64.b64encode(tobytes(value))
+    value = base64.b64encode(tobytes(value)).decode('utf-8')
     timestamp = '%X' % time.time()
     signature = _create_signature(secret, name, value, timestamp)
     return (value + '|' + timestamp + '|' + signature)
 
 
 def _decode_signed_value(secret, name, value, max_age_days=31):
-    parts = tobytes(value or '').split("|")
+    parts = (value or '').split("|")
     if len(parts) != 3:
         return  # Invalid
     if time.time() - int(parts[1], 16) > max_age_days * 86400:
         return  # Expired
     signature = _create_signature(secret, name, parts[0], parts[1])
     if compare_digest(parts[2], signature):
-        return base64.b64decode(parts[0])
+        return base64.b64decode(parts[0]).decode('utf-8')
 
 
 def _create_signature(secret, *parts):
@@ -174,7 +184,7 @@ class lazyproperty(object):
         if obj is None:
             return self
         value = self._function(obj)
-        setattr(obj, self._function.func_name, value)
+        setattr(obj, self._function.__name__, value)
         return value
 
 
@@ -257,10 +267,15 @@ class HTTPHeaders(object):
         self.set(key, value)
         return value
 
-    def to_list(self, charset='iso-8859-1'):
-        """Convert the headers into a list."""
-        return [(k, v.encode(charset) if isinstance(v, unicode) else str(v))
-                for (k, v) in self]
+    if str is unicode:
+        def to_list(self, charset='iso-8859-1'):
+            """Convert the headers into a list."""
+            return [(k, str(v)) for (k, v) in self]
+    else:
+        def to_list(self, charset='iso-8859-1'):
+            """Convert the headers into a list."""
+            return [(k, v.encode(charset) if isinstance(v, unicode)
+                     else str(v)) for (k, v) in self]
 
     def __str__(self, charset='iso-8859-1'):
         lines = ['%s: %s' % kv for kv in self.to_list(charset)]
@@ -287,7 +302,7 @@ class EnvironHeaders(HTTPHeaders):
         return self.environ.get('HTTP_' + key)
 
     def __iter__(self):
-        for key, value in self.environ.iteritems():
+        for key, value in self.environ.items():
             if key.startswith('HTTP_'):
                 if key not in ('HTTP_CONTENT_TYPE', 'HTTP_CONTENT_LENGTH'):
                     yield (key[5:].replace('_', '-').title(), value)
@@ -305,7 +320,7 @@ class Request(object):
 
     def __init__(self, environ):
         self.environ = environ
-        self.path = environ.get('PATH_INFO', '/').decode('utf-8')
+        self.path = recode(environ.get('PATH_INFO', '/'))
         if self.path[-1:] != '/':
             self.path += '/'
         self.method = environ.get('REQUEST_METHOD', 'GET').upper()
@@ -340,7 +355,7 @@ class Request(object):
     @lazyproperty
     def cookies(self):
         """A dictionary of Cookie.Morsel objects."""
-        cookies = Cookie.SimpleCookie()
+        cookies = SimpleCookie()
         try:
             cookies.load(self.headers["Cookie"])
         except Exception:
@@ -373,7 +388,7 @@ class Request(object):
         """Take POST/PUT data and rip it apart into a dict."""
         environ = self.environ.copy()
         environ['QUERY_STRING'] = ''    # Don't mix GET and POST variables
-        raw_data = cgi.FieldStorage(fp=StringIO(self.body), environ=environ)
+        raw_data = cgi.FieldStorage(fp=BytesIO(self.body), environ=environ)
         post_dict = {}
 
         for field in raw_data:
@@ -404,12 +419,12 @@ class Response(object):
     def set_cookie(self, name, value, domain=None, expires=None, path="/",
                    expires_days=None, **kwargs):
         """Set the given cookie name/value with the given options."""
-        name = tobytes(name)
-        value = tobytes(value)
+        name = str(name)
+        value = value if isinstance(value, str) else value.encode('utf-8')
         if re.search(r"[\x00-\x20]", name + value):
             raise ValueError("Invalid cookie %r: %r" % (name, value))
         if not hasattr(self, "_new_cookie"):
-            self._new_cookie = Cookie.SimpleCookie()
+            self._new_cookie = SimpleCookie()
         if name in self._new_cookie:
             del self._new_cookie[name]
         self._new_cookie[name] = value

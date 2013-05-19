@@ -2,7 +2,7 @@
 import fiole
 
 __all__ = ['ENVIRON', 'FORM_DATA_CONTENT_TYPE', 'FORM_DATA_1', 'FORM_DATA_2',
-           'handle_single_request']
+           'PY3', 'handle_single_request']
 
 ENVIRON = {
     'REQUEST_METHOD': 'GET',
@@ -16,7 +16,7 @@ ENVIRON = {
 # Samples from:
 #   http://www.w3.org/TR/html401/interact/forms.html#h-17.13.4
 FORM_DATA_CONTENT_TYPE = "multipart/form-data; boundary=AaB03x"
-FORM_DATA_1 = """\
+FORM_DATA_1 = b"""\
 --AaB03x
 Content-Disposition: form-data; name="submit-name"
 
@@ -27,7 +27,8 @@ Content-Type: text/plain
 
 ... contents of file1.txt ...
 --AaB03x--"""
-FORM_DATA_2 = """\
+# Added "Content-Length: 268" to work around http://bugs.python.org/issue18013
+FORM_DATA_2 = b"""\
 --AaB03x
 Content-Disposition: form-data; name="submit-name"
 
@@ -35,6 +36,7 @@ Larry
 --AaB03x
 Content-Disposition: form-data; name="files"
 Content-Type: multipart/mixed; boundary=BbC04y
+Content-Length: 268
 
 --BbC04y
 Content-Disposition: file; filename="file1.txt"
@@ -49,6 +51,11 @@ Content-Transfer-Encoding: binary
 ...contents of file2.gif...
 --BbC04y--
 --AaB03x--"""
+
+try:
+    PY3, basestring, native = False, basestring, str
+except NameError:
+    PY3, basestring, native = True, str, lambda s: s.decode('latin-1')
 
 
 class WSGIErrors(object):
@@ -79,13 +86,13 @@ class StartResponse(object):
 def handle_single_request(environ, **kw):
     """Return a dictionary: {status, headers, data, errors}."""
     if isinstance(environ, basestring):
-        method, sep, url = environ.encode('utf-8').partition(' ')
-        path, sep, query_string = url.partition('?')
+        method, sep, url = environ.encode('utf-8').partition(b' ')
+        path, sep, query_string = url.partition(b'?')
         environ = dict(ENVIRON)
         environ.update({
-            'REQUEST_METHOD': method,
-            'PATH_INFO': path,
-            'QUERY_STRING': query_string,
+            'REQUEST_METHOD': native(method),
+            'PATH_INFO': native(path),
+            'QUERY_STRING': native(query_string),
         })
     else:
         environ = dict(environ)

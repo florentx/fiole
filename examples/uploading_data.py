@@ -29,7 +29,7 @@ def test_upload(request):
     if getattr(request.POST['myfile'], 'filename', None):
         myfilename = request.POST['myfile'].filename
         myfile_contents = request.POST['myfile'].file.read()
-        with open(myfilename, 'w') as uploaded_file:
+        with open(myfilename, 'wb') as uploaded_file:
             uploaded_file.write(myfile_contents)
     return render_template('debug-layout.tmpl',
                            title='Upload result', request=request)

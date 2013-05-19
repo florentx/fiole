@@ -46,9 +46,9 @@ Pi = {{ '%.9f' % math.pi }}"""),
         self.assertEqual(self.render({}, """\
 %# import  this \n\
 % import  itertools
-# {{ 42 | s }} {{ locals().keys() |s }}"""),
+# {{ 42 | s }} {{ locals()|sorted |s }}"""),
                          """\
-# 42 ['ctx', '_b', 'itertools', 'w', 'local_defs', 'super_defs']""")
+# 42 ['_b', 'ctx', 'itertools', 'local_defs', 'super_defs', 'w']""")
 
     def test_var(self):
         ctx = {'username': 'John'}

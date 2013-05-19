@@ -38,8 +38,10 @@ def unicode(request):
 
 @get('/receive')
 def receive_cookies(request):
+    unsecure_cookie = request.get_cookie('foo')
     secure_cookie = request.get_secure_cookie('foo')
-    content = '%r\n\n%s' % (request.cookies, secure_cookie)
+    content = '%r\n\nunsecure: %s\nsecure: %s' % (
+        request.cookies, unsecure_cookie, secure_cookie)
     response = Response(content, content_type='text/plain')
     return response
 
@@ -47,7 +49,7 @@ def receive_cookies(request):
 @get('/send')
 def send_cookie(request):
     response = Response('<a href="/receive">Check your cookies.</a>')
-    response.set_cookie('foo', 'bar')
+    response.set_cookie('foo', u'bär')
     response.set_cookie('session', 'asdfjlasdfjsdfkjgsdfogd')
     return response
 
@@ -55,7 +57,7 @@ def send_cookie(request):
 @get('/send_secure')
 def send_secure_cookie(request):
     response = Response('<a href="/receive">Check your cookies.</a>')
-    response.set_secure_cookie('foo', 'bar')
+    response.set_secure_cookie('foo', u'bär')
     return response
 
 
