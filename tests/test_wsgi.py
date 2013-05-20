@@ -9,8 +9,8 @@ except ImportError:
 import fiole
 from ._common import (PY3, ENVIRON, handle_single_request,
                       FORM_DATA_CONTENT_TYPE, FORM_DATA_1, FORM_DATA_2)
-u = lambda s: s.decode('utf-8') if isinstance(s, bytes) else s
-b = lambda s: s if isinstance(s, bytes) else s.encode('utf-8')
+u = (lambda s: s) if PY3 else (lambda s: s.decode('utf-8'))
+b = (lambda s: s.encode('utf-8')) if PY3 else (lambda s: s)
 
 
 class FioleTestCase(unittest.TestCase):
