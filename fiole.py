@@ -626,8 +626,8 @@ TOKENS = {'end' + k: 'end' for k in 'for if while with try class'.split()}
 TOKENS.update({k: 'block' for k in 'for if while with try class'.split()})
 TOKENS.update({k: 'continue' for k in 'else elif except finally'.split()})
 TOKENS.update({k: k for k in SPECIAL_TOKENS})
-COMPOUND_TOKENS = ['extends', 'def', 'block', 'continue']
-OUT_TOKENS = ['markup', 'var', 'include']
+COMPOUND_TOKENS = {'extends', 'def', 'block', 'continue'}
+OUT_TOKENS = {'markup', 'var', 'include'}
 isidentifier = re.compile(r'[a-zA-Z_]\w*').match
 setdefs = "super_defs['?'] = ?; ? = local_defs.setdefault('?', ?)".replace
 
