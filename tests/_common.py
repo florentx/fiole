@@ -52,10 +52,9 @@ Content-Transfer-Encoding: binary
 --BbC04y--
 --AaB03x--"""
 
-try:
-    PY3, basestring, native = False, basestring, str
-except NameError:
-    PY3, basestring, native = True, str, lambda s: s.decode('latin-1')
+PY3 = (''.encode() != '')
+basestring = str if PY3 else basestring
+native = str if PY3 else lambda s: s.decode('latin-1')
 
 
 class WSGIErrors(object):
