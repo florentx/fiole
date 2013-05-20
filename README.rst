@@ -13,7 +13,7 @@ constraints:
 
 Main features:
 
-* Regex-based routing
+* Routing
 * Methods GET/HEAD/POST/PUT/DELETE
 * Error handlers
 * File uploads
