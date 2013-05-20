@@ -109,6 +109,11 @@ def tobytes(value):
     return value.encode('utf-8') if isinstance(value, unicode) else value
 
 
+def escape(s):
+    """Escape special chars in HTML string."""
+    return cgi.escape(s).replace('"', '&quot;').replace("'", '&#x27;')
+
+
 def format_timestamp(ts):
     """Format a timestamp in the format used by HTTP."""
     if isinstance(ts, datetime):
@@ -1052,7 +1057,7 @@ class Template(object):
         return self.render_template(ctx or kwargs, {}, {})
 
 engine = Engine()
-engine.global_vars.update({'str': unicode, 'escape': cgi.escape})
+engine.global_vars.update({'str': unicode, 'escape': escape})
 
 
 def get_template(name=None, source=None, require=None):
