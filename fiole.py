@@ -1056,13 +1056,13 @@ engine.global_vars.update({'str': unicode, 'escape': cgi.escape})
 
 
 def get_template(name=None, source=None, require=None):
-    if source is None and ('\n' in name or '{{' in name):
+    if source is None:
+        if '\n' not in name and '{{' not in name:
+            return engine.get_template(name)
         (name, source) = (None, name)
-    if source is not None:
-        if require:
-            source = "%require(" + " ".join(require) + ")\n" + source
-        return engine.get_template(name, source=source)
-    return engine.get_template(name)
+    if require:
+        source = "%require(" + " ".join(require) + ")\n" + source
+    return engine.get_template(name, source=source)
 
 
 def render_template(template_name=None, source=None, **context):
