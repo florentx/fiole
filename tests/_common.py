@@ -54,7 +54,7 @@ Content-Transfer-Encoding: binary
 
 PY3 = (''.encode() != '')
 basestring = str if PY3 else basestring
-native = str if PY3 else lambda s: s.decode('latin-1')
+native = str if not PY3 else lambda s: s.decode('latin-1')
 
 
 class WSGIErrors(object):
