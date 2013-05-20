@@ -29,47 +29,6 @@ class LoaderTestCase(unittest.TestCase):
         self.assertRaises(Exception, self.loader.load, 'tmpl-x.html')
 
 
-class CleanSourceTestCase(unittest.TestCase):
-    """Test the ``clean_source`` preprocessor."""
-
-    def setUp(self):
-        from fiole import Parser
-        self.clean_source = Parser().preprocessors[0]
-
-    def test_new_line(self):
-        """Replace windows new line with linux new line."""
-        self.assertEqual(self.clean_source('a\r\nb'), 'a\nb')
-
-    def test_clean_leading_whitespace(self):
-        """Remove leading whitespace before %<stmt>, e.g. %if, %for, etc."""
-        from fiole import ALL_TOKENS
-        self.assertIn('#', ALL_TOKENS)
-        for tok in ALL_TOKENS:
-            self.assertEqual(self.clean_source('  %' + tok), '%' + tok)
-            self.assertEqual(self.clean_source('\n  %' + tok), '\n%' + tok)
-            self.assertEqual(self.clean_source('a\n  %' + tok), 'a\n%' + tok)
-
-        # Clean leading whitespace before % b tokens.
-        self.assertEqual(self.clean_source('a\n\n   %b'), 'a\n\n%b')
-        self.assertEqual(self.clean_source('a\n %b'), 'a\n%b')
-        self.assertEqual(self.clean_source('a\n%b'), 'a\n%b')
-        self.assertEqual(self.clean_source('a%  b'), 'a%  b')
-        self.assertEqual(self.clean_source('  %b'), '%b')
-
-    def test_leave_leading_whitespace(self):
-        """Leave leading whitespace before {{<var>}} tokens."""
-        self.assertEqual(self.clean_source('a\n\n  {{var}}'), 'a\n\n  {{var}}')
-        self.assertEqual(self.clean_source('a\n {{var}}'), 'a\n {{var}}')
-        self.assertEqual(self.clean_source('a\n{{var}}'), 'a\n{{var}}')
-        self.assertEqual(self.clean_source('a{{var}}'), 'a{{var}}')
-        self.assertEqual(self.clean_source('  {{var}}'), '  {{var}}')
-
-    def test_ignore(self):
-        """Ignore double %."""
-        self.assertEqual(self.clean_source('a\n  %%b'), 'a\n  %%b')
-        self.assertEqual(self.clean_source('  %%b'), '  %%b')
-
-
 class LexerTestCase(unittest.TestCase):
     """Test the default lexer."""
 
@@ -132,9 +91,9 @@ class LexerTestCase(unittest.TestCase):
     def test_markup_token_escape(self):
         """Test markup token with escape."""
         tokens = self.tokenize('support%%acme.org')
-        self.assertEqual(tokens, [(1, 'markup', 'support%acme.org')])
+        self.assertEqual(tokens, [(1, 'markup', 'support%%acme.org')])
         tokens = self.tokenize('support %%acme.org')
-        self.assertEqual(tokens, [(1, 'markup', 'support %acme.org')])
+        self.assertEqual(tokens, [(1, 'markup', 'support %%acme.org')])
         tokens = self.tokenize('support% %acme.org')
         self.assertEqual(tokens, [(1, 'markup', 'support% %acme.org')])
 

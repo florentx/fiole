@@ -621,11 +621,11 @@ default_app = Fiole.push()
 
 # The template engine
 
-BLOCK_TOKENS = ['for', 'if', 'while', 'with', 'try', 'def', 'class']
-CONTINUE_TOKENS = ['else', 'elif', 'except', 'finally']
-END_TOKENS = ['end'] + ['end' + w for w in BLOCK_TOKENS]
-RESERVED_TOKENS = ['extends', 'require', '#', 'include', 'import', 'from']
-ALL_TOKENS = BLOCK_TOKENS + CONTINUE_TOKENS + END_TOKENS + RESERVED_TOKENS
+SPECIAL_TOKENS = 'extends require # include import from def end'.split()
+TOKENS = {'end' + k: 'end' for k in 'for if while with try class'.split()}
+TOKENS.update({k: 'block' for k in 'for if while with try class'.split()})
+TOKENS.update({k: 'continue' for k in 'else elif except finally'.split()})
+TOKENS.update({k: k for k in SPECIAL_TOKENS})
 COMPOUND_TOKENS = ['extends', 'def', 'block', 'continue']
 OUT_TOKENS = ['markup', 'var', 'include']
 isidentifier = re.compile(r'[a-zA-Z_]\w*').match
@@ -660,18 +660,14 @@ class Loader(object):
 class Lexer(object):
     """Tokenize input source per rules supplied."""
 
-    def __init__(self, lexer_rules, preprocessors=None, **ignore):
+    def __init__(self, lexer_rules):
         """Initialize with ``rules``."""
         self.rules = lexer_rules
-        self.preprocessors = preprocessors or []
 
     def tokenize(self, source):
         """Translate ``source`` into an iterable of tokens."""
         tokens = []
-        append = tokens.append
-        for preprocessor in self.preprocessors:
-            source = preprocessor(source)
-        pos, lineno, end = 0, 1, len(source)
+        (pos, lineno, end, append) = (0, 1, len(source), tokens.append)
         while pos < end:
             for tokenizer in self.rules:
                 rv = tokenizer(source, pos)
@@ -692,14 +688,13 @@ class Parser(Lexer):
 
     def __init__(self, token_start='%', var_start='{{', var_end='}}',
                  line_join='\\'):
-        tok = re.escape(token_start)
-        vstart, vend = re.escape(var_start), re.escape(var_end)
-        _clean = re.compile(r'(^|\n)(?: +)(?=%s[^%s])' % (tok, tok)).sub
-        stmt_match = re.compile(r'%s *(\w+ ?|#) *(.*?(?<!%s))(?:\n|$)' %
-                                (tok, re.escape(line_join)), re.S).match
-        var_match = re.compile(r'%s\s*(.*?)\s*%s' % (vstart, vend)).match
-        markup_match = re.compile(r'.*?(?:(?=%s)|\n *(?=%s[^%s]))|.+' %
-                                  (vstart, tok, tok), re.S).match
+        d = {'tok': re.escape(token_start), 'lj': re.escape(line_join),
+             'vs': re.escape(var_start), 've': re.escape(var_end)}
+        stmt_match = re.compile(r' *%(tok)s(?!%(tok)s) *(#|\w+ ?)? *'
+                                r'(.*?(?<!%(lj)s))(?:\n|$)' % d, re.S).match
+        var_match = re.compile(r'%(vs)s\s*(.*?)\s*%(ve)s' % d).match
+        markup_match = re.compile(r'.*?(?:(?=%(vs)s)|\n(?= *%(tok)s'
+                                  r'[^%(tok)s]))|.+' % d, re.S).match
         line_join += '\n'
 
         def stmt_token(source, pos):
@@ -708,17 +703,9 @@ class Parser(Lexer):
             if m:
                 if pos > 0 and source[pos - 1] != '\n':
                     return
-                token = m.group(1)
+                token = m.group(1) or ''
                 stmt = token + m.group(2).replace(line_join, '')
-                token = token.rstrip()
-                if token in END_TOKENS:
-                    token = 'end'
-                elif token in CONTINUE_TOKENS:
-                    token = 'continue'
-                elif token in BLOCK_TOKENS and token != 'def':
-                    token = 'block'
-                elif token not in ALL_TOKENS:
-                    token = 'statement'
+                token = TOKENS.get(token.rstrip(), 'statement')
                 if token in ('require', 'include', 'extends'):
                     stmt = re.search(r'\(\s*(.*?)\s*\)', stmt).group(1)
                     if token == 'require':
@@ -730,20 +717,13 @@ class Parser(Lexer):
             m = var_match(source, pos)
             return m and (m.end(), 'var', m.group(1).replace(line_join, ''))
 
-        def markup_token(source, pos, twotok=token_start + token_start):
+        def mtok(source, pos, _s=re.compile(r'(\n *%(tok)s)%(tok)s' % d).sub):
             """Produce markup token."""
             m = markup_match(source, pos)
-            return m and (m.end(), 'markup',
-                          (m.group().replace(twotok, token_start)
-                                    .replace(line_join, '') or None))
+            return m and (m.end(), 'markup', _s(r'\1', (pos and source[pos-1]
+                          or '\n') + m.group())[1:].replace(line_join, ''))
 
-        def clean_source(source):
-            """Clean leading whitespace for all control tokens."""
-            return _clean(r'\1', source.replace('\r\n', '\n'))
-
-        super(Parser, self).__init__(
-            lexer_rules=[stmt_token, var_token, markup_token],
-            preprocessors=[clean_source])
+        super(Parser, self).__init__([stmt_token, var_token, mtok])
 
     def end_continue(self, tokens):
         """If token is ``continue`` prepend it with ``end`` token so

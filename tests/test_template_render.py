@@ -149,3 +149,85 @@ Hi, {{name}}\
         self.assertEqual(self.render({'magic': 42}, template),
                          '    First Line')
         self.assertEqual(self.render({'magic': 987}, template), 'Moar Lines')
+
+
+class StatementTestCase(unittest.TestCase):
+    """Test the special '%' and escaped '%%'."""
+
+    def setUp(self):
+        import fiole
+        from fiole import Engine, Loader
+        self.get_template = fiole.get_template
+        fiole.engine = Engine(loader=Loader(templates={}))
+
+    def render(self, ctx, source):
+        template = self.get_template(source=source, require=ctx)
+        return template.render(ctx)
+
+    def test_special_token(self):
+        ctx = {}
+        # statement token (may be empty)
+        self.assertEqual(self.render(ctx, '%'), '')
+        self.assertEqual(self.render(ctx, ' %'), '')
+        self.assertEqual(self.render(ctx, '% '), '')
+        self.assertEqual(self.render(ctx, ' % '), '')
+        self.assertEqual(self.render(ctx, '%any'), '')
+        self.assertEqual(self.render(ctx, '% all'), '')
+        self.assertEqual(self.render(ctx, ' %all'), '')
+        self.assertEqual(self.render(ctx, ' % any'), '')
+
+    def test_special_token_escaped(self):
+        ctx = {}
+        # escaped % (first line)
+        self.assertEqual(self.render(ctx, '%%'), '%')
+        self.assertEqual(self.render(ctx, ' %%'), ' %')
+        self.assertEqual(self.render(ctx, '%% '), '% ')
+        self.assertEqual(self.render(ctx, ' %% '), ' % ')
+        self.assertEqual(self.render(ctx, '%%any'), '%any')
+        self.assertEqual(self.render(ctx, '%% all'), '% all')
+        self.assertEqual(self.render(ctx, ' %%all'), ' %all')
+        self.assertEqual(self.render(ctx, ' %% any'), ' % any')
+        # escaped % (not first line)
+        self.assertEqual(self.render(ctx, 'line\n%%'), 'line\n%')
+        self.assertEqual(self.render(ctx, 'line\n %%'), 'line\n %')
+        self.assertEqual(self.render(ctx, 'line\n%% '), 'line\n% ')
+        self.assertEqual(self.render(ctx, 'line\n %% '), 'line\n % ')
+        self.assertEqual(self.render(ctx, 'line\n%%any'), 'line\n%any')
+        self.assertEqual(self.render(ctx, 'line\n%% all'), 'line\n% all')
+        self.assertEqual(self.render(ctx, 'line\n %%all'), 'line\n %all')
+        self.assertEqual(self.render(ctx, 'line\n %% any'), 'line\n % any')
+
+    def test_not_special_token(self):
+        ctx = {'ftwo': '42'}
+        # not special
+        self.assertEqual(self.render(ctx, 'a %'), 'a %')
+        self.assertEqual(self.render(ctx, ' a % '), ' a % ')
+        self.assertEqual(self.render(ctx, '; %any'), '; %any')
+        self.assertEqual(self.render(ctx, '; % all'), '; % all')
+        self.assertEqual(self.render(ctx, 'line\n; %all'), 'line\n; %all')
+        self.assertEqual(self.render(ctx, 'line\n; % any'), 'line\n; % any')
+        # not special, double '%%' is preserved
+        self.assertEqual(self.render(ctx, 'a %%'), 'a %%')
+        self.assertEqual(self.render(ctx, ' a %% '), ' a %% ')
+        self.assertEqual(self.render(ctx, '; %%any'), '; %%any')
+        self.assertEqual(self.render(ctx, '; %% all'), '; %% all')
+        self.assertEqual(self.render(ctx, 'line\n; %%all'), 'line\n; %%all')
+        self.assertEqual(self.render(ctx, 'line\n; %% any'), 'line\n; %% any')
+        # not special, after var token
+        self.assertEqual(self.render(ctx, 'line {{ ftwo }}%'), 'line 42%')
+        self.assertEqual(self.render(ctx, 'line {{ ftwo }} %'), 'line 42 %')
+        self.assertEqual(self.render(ctx, 'line {{ ftwo }}% '), 'line 42% ')
+        self.assertEqual(self.render(ctx, 'line {{ ftwo }} % '), 'line 42 % ')
+        self.assertEqual(self.render(ctx, 'li {{ ftwo }}%any'), 'li 42%any')
+        self.assertEqual(self.render(ctx, 'li {{ ftwo }}% all'), 'li 42% all')
+        self.assertEqual(self.render(ctx, 'li {{ ftwo }} %all'), 'li 42 %all')
+        self.assertEqual(self.render(ctx, 'l.{{ ftwo }} % any'), 'l.42 % any')
+        # not special, after var token, double '%%' is preserved
+        self.assertEqual(self.render(ctx, 'line {{ ftwo }}%%'), 'line 42%%')
+        self.assertEqual(self.render(ctx, 'line {{ ftwo }} %%'), 'line 42 %%')
+        self.assertEqual(self.render(ctx, 'line {{ ftwo }}%% '), 'line 42%% ')
+        self.assertEqual(self.render(ctx, 'line {{ftwo }} %% '), 'line 42 %% ')
+        self.assertEqual(self.render(ctx, 'li {{ ftwo  }}%%any'), 'li 42%%any')
+        self.assertEqual(self.render(ctx, 'li {{ftwo }}%% all'), 'li 42%% all')
+        self.assertEqual(self.render(ctx, 'li {{ftwo }} %%all'), 'li 42 %%all')
+        self.assertEqual(self.render(ctx, 'l.{{ ftwo}} %% any'), 'l.42 %% any')
