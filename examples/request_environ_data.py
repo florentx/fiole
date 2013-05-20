@@ -9,7 +9,7 @@ def index(request):
     except KeyError:
         pass
 
-    return render_template(source="""%require(request)
+    return render_template("""\
 Remote Addr: {{ request.REMOTE_ADDR|repr|e }}<br>
 GET name: {{ request.GET.get('name', 'undefined')|repr|e }}<br>
 GET foo: {{ request.GET.get('foo', 'undefined')|repr|e }}
