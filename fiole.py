@@ -10,7 +10,6 @@ import cgi
 import hashlib
 import hmac
 import imp
-import mimetypes
 import os
 import re
 import sys
@@ -19,6 +18,7 @@ import traceback
 from datetime import datetime, timedelta
 from email.utils import formatdate
 from functools import update_wrapper, wraps
+from mimetypes import guess_type as guess_ct
 from threading import Lock
 from wsgiref.util import FileWrapper
 try:                  # Python 3
@@ -556,7 +556,7 @@ class Fiole(object):
                    'Last-Modified': format_timestamp(stat.st_mtime)}
 
         if not content_type:
-            content_type = mimetypes.guess_type(filename)[0] or 'text/plain'
+            content_type = guess_ct(filename)[0] or 'application/octet-stream'
         file_wrapper = request.environ.get('wsgi.file_wrapper', FileWrapper)
         fobj = file_wrapper(open(desired_path, 'rb'), buffer_size)
         return Response(fobj, headers=headers, content_type=content_type,
