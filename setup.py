@@ -19,7 +19,7 @@ setup(
     version=get_version(),
     description='The handy Python web framework.',
     long_description=get_long_description(),
-    author='Florent Xicuna',
+    author='Florent Xicluna',
     author_email='florent.xicluna@gmail.com',
     url='http://fiole.readthedocs.org/',
     py_modules=['fiole'],
