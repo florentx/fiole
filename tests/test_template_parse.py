@@ -97,6 +97,59 @@ class LexerTestCase(unittest.TestCase):
         tokens = self.tokenize('support% %acme.org')
         self.assertEqual(tokens, [(1, 'markup', 'support% %acme.org')])
 
+    def test_line_continuation(self):
+        tokens = self.tokenize('a line \nlast line')
+        self.assertEqual(tokens, [(1, 'markup', 'a line \nlast line')])
+        tokens = self.tokenize('a line \\\nlast line')
+        self.assertEqual(tokens, [(1, 'markup', 'a line last line')])
+        tokens = self.tokenize('a line\\\n last line')
+        self.assertEqual(tokens, [(1, 'markup', 'a line last line')])
+        tokens = self.tokenize('a line \n{{ [i\n  for i in range(17)]|s }} x')
+        self.assertEqual(tokens, [(1, 'markup', 'a line \n'),
+                                  (2, 'var', '[i\n  for i in range(17)]|s'),
+                                  (3, 'markup', ' x')])
+        tokens = self.tokenize('a line \n{{ [i\\\n  for i in range(17)]|s }} x')
+        self.assertEqual(tokens, [(1, 'markup', 'a line \n'),
+                                  (2, 'var', '[i  for i in range(17)]|s'),
+                                  (3, 'markup', ' x')])
+        tokens = self.tokenize('% for i in range(22):\n  print(i)\n% endfor')
+        self.assertEqual(tokens, [(1, 'block', 'for i in range(22):'),
+                                  (2, 'markup', '  print(i)\n'),
+                                  (3, 'end', 'endfor')])
+        tokens = self.tokenize('% for i in range(22):\\\n  print(i)\n% endfor')
+        self.assertEqual(tokens, [(1, 'block', 'for i in range(22):  print(i)'),
+                                  (3, 'end', 'endfor')])
+        tokens = self.tokenize('% for i in range(22):\n  print(i)\\\n% endfor')
+        self.assertEqual(tokens, [(1, 'block', 'for i in range(22):'),
+                                  (2, 'markup', '  print(i)'),
+                                  (3, 'end', 'endfor')])
+        # CR LF
+        tokens = self.tokenize('a line \r\nlast line')
+        self.assertEqual(tokens, [(1, 'markup', 'a line \nlast line')])
+        tokens = self.tokenize('a line \\\r\nlast line')
+        self.assertEqual(tokens, [(1, 'markup', 'a line last line')])
+        tokens = self.tokenize('a line\\\r\n last line')
+        self.assertEqual(tokens, [(1, 'markup', 'a line last line')])
+        tokens = self.tokenize('a line \r\n{{ [i\r\n  for i in range(17)]|s }} x')
+        self.assertEqual(tokens, [(1, 'markup', 'a line \n'),
+                                  (2, 'var', '[i\n  for i in range(17)]|s'),
+                                  (3, 'markup', ' x')])
+        tokens = self.tokenize('a line \r\n{{ [i\\\r\n  for i in range(17)]|s }} x')
+        self.assertEqual(tokens, [(1, 'markup', 'a line \n'),
+                                  (2, 'var', '[i  for i in range(17)]|s'),
+                                  (3, 'markup', ' x')])
+        tokens = self.tokenize('% for i in range(22):\r\n  print NL\r\n% endfor')
+        self.assertEqual(tokens, [(1, 'block', 'for i in range(22):'),
+                                  (2, 'markup', '  print NL\n'),
+                                  (3, 'end', 'endfor')])
+        tokens = self.tokenize('% for i in range(22):\\\r\n  print(i)\r\n% endfor')
+        self.assertEqual(tokens, [(1, 'block', 'for i in range(22):  print(i)'),
+                                  (3, 'end', 'endfor')])
+        tokens = self.tokenize('% for i in range(22):\r\n  skip NL\\\r\n% endfor')
+        self.assertEqual(tokens, [(1, 'block', 'for i in range(22):'),
+                                  (2, 'markup', '  skip NL'),
+                                  (3, 'end', 'endfor')])
+
 
 class ParserTestCase(unittest.TestCase):
     """Test the default parser."""

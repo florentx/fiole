@@ -13,11 +13,12 @@ import imp
 import mimetypes
 import os
 import re
+import sys
 import time
 import traceback
 from datetime import datetime, timedelta
 from email.utils import formatdate
-from functools import wraps
+from functools import update_wrapper, wraps
 from threading import Lock
 from wsgiref.util import FileWrapper
 try:                  # Python 3
@@ -36,26 +37,21 @@ except ImportError:   # Python 2
     recode = lambda s: s.decode('utf-8')
 
 DEFAULT_BIND = {'host': '127.0.0.1', 'port': 8080}
-STATIC_FOLDER = os.path.join(os.path.dirname(__file__), 'static')
-TEMPLATE_FOLDER = os.path.join(os.path.dirname(__file__), 'templates')
-HTTP_CODES[418] = "I'm a teapot"                    # RFC 2324
-HTTP_CODES[428] = "Precondition Required"
-HTTP_CODES[429] = "Too Many Requests"
-HTTP_CODES[431] = "Request Header Fields Too Large"
-HTTP_CODES[511] = "Network Authentication Required"
 SECRET_KEY = None
+MAIN_MODULE = '__main__'
 
 __version__ = '0.1a0'
 __all__ = ['HTTPError', 'BadRequest', 'Forbidden', 'NotFound',  # HTTP errors
            'MethodNotAllowed', 'InternalServerError', 'Redirect',
            # Base classes
            'HTTPHeaders', 'EnvironHeaders', 'Request', 'Response', 'Fiole',
-           # Default application, decorators and static file helper
-           'default_app', 'get_app', 'send_file', 'run_fiole',
+           # Decorators
            'route', 'get', 'post', 'put', 'delete', 'errorhandler',
-           # Template engine
+           # Template engine and static file helper
            'Loader', 'Lexer', 'Parser', 'BlockBuilder', 'Engine', 'Template',
-           'engine', 'get_template', 'render_template']
+           'engine', 'get_template', 'render_template', 'send_file',
+           # WSGI application and server
+           'default_app', 'get_app', 'run_fiole']
 
 
 # Exceptions
@@ -158,6 +154,11 @@ def _create_signature(secret, *parts):
     return sign.hexdigest()
 
 
+def _get_root_folder():
+    return os.path.abspath(os.path.dirname(
+        getattr(sys.modules[MAIN_MODULE], '__file__', '.')))
+
+
 def _url_matcher(url, _psub=re.compile(r'(<[a-zA-Z_]\w*>)').sub):
     if '(?' not in url:
         url = _psub(r'(?P\1[^/]+)', re.sub(r'([^<\w/>])', r'\\\1', url))
@@ -180,10 +181,10 @@ def _format_vkw(value, kw, _quoted=re.compile(r"[^\w!#$%&'*.^`|~+-]").search):
 
 class lazyproperty(object):
     """A property whose value is computed only once."""
-    __slots__ = ('_function',)
 
     def __init__(self, function):
         self._function = function
+        update_wrapper(self, function)
 
     def __get__(self, obj, cls=None):
         if obj is None:
@@ -229,58 +230,58 @@ class HTTPHeaders(object):
                 return v
 
     def get(self, name, default=None):
-        """Return the default value if the requested data doesn't exist."""
+        """Return the default value if the header doesn't exist."""
         rv = self[name]
         return rv if (rv is not None) else default
 
     def get_all(self, name):
-        """Return a list of all the values for the named field."""
+        """Return a list of all the values for the header."""
         ikey = name.lower()
         return [v for (k, v) in self if k.lower() == ikey]
 
     def __delitem__(self, name):
-        """Remove a key."""
+        """Remove a header."""
         ikey = name.lower()
         self._list[:] = [(k, v) for (k, v) in self._list if k.lower() != ikey]
 
-    def __contains__(self, key):
-        """Check if a key is present."""
-        return self[key] is not None
+    def __contains__(self, name):
+        """Check if this header is present."""
+        return self[name] is not None
 
-    def add(self, _key, _value, **kw):
+    def add(self, name, value, **kw):
         """Add a new header tuple to the list."""
-        self._list.append((_key, _format_vkw(_value, kw)))
+        self._list.append((name, _format_vkw(value, kw)))
 
-    def set(self, _key, _value, **kw):
+    def set(self, name, value, **kw):
         """Remove all header tuples for `key` and add a new one."""
-        ikey = _key.lower()
-        _value = _format_vkw(_value, kw)
+        ikey = name.lower()
+        _value = _format_vkw(value, kw)
         for idx, (old_key, old_value) in enumerate(self._list):
             if old_key.lower() == ikey:
-                self._list[idx] = (_key, _value)
+                self._list[idx] = (name, _value)
                 break
         else:
-            return self._list.append((_key, _value))
+            return self._list.append((name, _value))
         self._list[idx + 1:] = [(k, v) for (k, v) in self._list[idx + 1:]
                                 if k.lower() != ikey]
     __setitem__ = set
 
-    def setdefault(self, key, value):
-        old_value = self[key]
+    def setdefault(self, name, value):
+        """Add a new header if not present.  Return the value."""
+        old_value = self[name]
         if old_value is not None:
             return old_value
-        self.set(key, value)
+        self.set(name, value)
         return value
 
     if str is unicode:
         def to_list(self, charset='iso-8859-1'):
-            """Convert the headers into a list."""
             return [(k, str(v)) for (k, v) in self]
     else:
         def to_list(self, charset='iso-8859-1'):
-            """Convert the headers into a list."""
             return [(k, v.encode(charset) if isinstance(v, unicode)
                      else str(v)) for (k, v) in self]
+    to_list.__doc__ = """Convert the headers into a list."""
 
     def __str__(self, charset='iso-8859-1'):
         lines = ['%s: %s' % kv for kv in self.to_list(charset)]
@@ -295,13 +296,13 @@ class HTTPHeaders(object):
 
 
 class EnvironHeaders(HTTPHeaders):
-    """Headers from a WSGI environment."""
+    """Headers from a WSGI environment.  Read-only view."""
 
     def __init__(self, environ):
         self.environ = environ
 
-    def __getitem__(self, key):
-        key = key.upper().replace('-', '_')
+    def __getitem__(self, name):
+        key = name.upper().replace('-', '_')
         if key in ('CONTENT_TYPE', 'CONTENT_LENGTH'):
             return self.environ.get(key)
         return self.environ.get('HTTP_' + key)
@@ -342,15 +343,14 @@ class Request(object):
 
     @lazyproperty
     def GET(self):
+        """A dictionary of GET parameters."""
         return self.build_get_dict()
 
     @lazyproperty
     def POST(self):
+        """A dictionary of POST (or PUT) values, including files."""
         return self.build_complex_dict()
-
-    @lazyproperty
-    def PUT(self):
-        return self.build_complex_dict()
+    PUT = POST
 
     @lazyproperty
     def body(self):
@@ -459,10 +459,11 @@ class Response(object):
                         expires_days=expires_days, **kwargs)
 
     def create_signed_value(self, name, value):
-        """Sign and timestamp a string so it cannot be forged."""
+        """Return a signed string with timestamp."""
         return _create_signed_value(SECRET_KEY, name, value)
 
     def send(self, environ, start_response):
+        """Send the headers and return the body of the response."""
         status = "%d %s" % (self.status, HTTP_CODES.get(self.status))
         output = self.output if self.wrapped else [tobytes(self.output or '')]
         if not self.wrapped:
@@ -477,19 +478,21 @@ class Response(object):
 class Fiole(object):
     """Web Application."""
     _stack = []
+    static_folder = os.path.join(_get_root_folder(), 'static')
 
     def __init__(self):
         self.routes = []
         self.error_handlers = {302: http_302_found}
-        self.static_folder = STATIC_FOLDER
 
     @classmethod
     def push(cls, app=None):
+        """Push a new :class:`Fiole` application on the stack."""
         cls._stack.append(app or cls())
         return cls._stack[-1]
 
     @classmethod
     def pop(cls, index=-1):
+        """Remove the :class:`Fiole` application from the stack."""
         return cls._stack.pop(index)
 
     def handle_request(self, environ, start_response):
@@ -568,14 +571,15 @@ class Fiole(object):
 
     # Decorators
 
-    def route(self, url, methods=('GET',), callback=None, status=200):
-        def decorator(func):
-            self.routes.append((url, _url_matcher(url), methods, func, status))
+    def route(self, url, methods=('GET', 'HEAD'), callback=None, status=200):
+        """Register a method for processing requests."""
+        def decorator(func, add=self.routes.append):
+            add((url, _url_matcher(url), tuple(methods), func, status))
             return func
         return decorator(callback) if callback else decorator
 
     def get(self, url):
-        """Register a method as capable of processing GET requests."""
+        """Register a method as capable of processing GET/HEAD requests."""
         return self.route(url, methods=('GET', 'HEAD'))
 
     def post(self, url):
@@ -615,8 +619,16 @@ post = _make_app_wrapper('post')
 put = _make_app_wrapper('put')
 delete = _make_app_wrapper('delete')
 errorhandler = _make_app_wrapper('errorhandler')
+
+#: Get the :class:`Fiole` application which is on the top of the stack.
 get_app = lambda: Fiole._stack[-1]
 default_app = Fiole.push()
+
+HTTP_CODES[418] = "I'm a teapot"                    # RFC 2324
+HTTP_CODES[428] = "Precondition Required"
+HTTP_CODES[429] = "Too Many Requests"
+HTTP_CODES[431] = "Request Header Fields Too Large"
+HTTP_CODES[511] = "Network Authentication Required"
 
 
 # The template engine
@@ -638,6 +650,7 @@ class Loader(object):
     ``templates`` - a dict where key corresponds to template name and
     value to template content.
     """
+    template_folder = 'templates'
 
     def __init__(self, templates=None):
         self.templates = templates if templates is not None else {}
@@ -652,7 +665,7 @@ class Loader(object):
             return unicode(source)
         if name in self.templates:
             return self.templates[name]
-        path = os.path.join(TEMPLATE_FOLDER, name)
+        path = os.path.join(_get_root_folder(), self.template_folder, name)
         with open(path, 'rb') as f:
             return f.read().decode('utf-8')
 
@@ -667,6 +680,7 @@ class Lexer(object):
     def tokenize(self, source):
         """Translate ``source`` into an iterable of tokens."""
         tokens = []
+        source = source.replace('\r\n', '\n')
         (pos, lineno, end, append) = (0, 1, len(source), tokens.append)
         while pos < end:
             for tokenizer in self.rules:
@@ -691,11 +705,11 @@ class Parser(Lexer):
         d = {'tok': re.escape(token_start), 'lj': re.escape(line_join),
              'vs': re.escape(var_start), 've': re.escape(var_end)}
         stmt_match = re.compile(r' *%(tok)s(?!%(tok)s) *(#|\w+ ?)? *'
-                                r'(.*?(?<!%(lj)s))(?:\n|$)' % d, re.S).match
-        var_match = re.compile(r'%(vs)s\s*(.*?)\s*%(ve)s' % d).match
+                                r'(.*?)(?<!%(lj)s)(?:\n|$)' % d, re.S).match
+        var_match = re.compile(r'%(vs)s\s*(.*?)\s*%(ve)s' % d, re.S).match
         markup_match = re.compile(r'.*?(?:(?=%(vs)s)|\n(?= *%(tok)s'
                                   r'[^%(tok)s]))|.+' % d, re.S).match
-        line_join += '\n'
+        line_join_sub = re.compile(r'%(lj)s\n' % d).sub
 
         def stmt_token(source, pos):
             """Produce statement token."""
@@ -704,24 +718,24 @@ class Parser(Lexer):
                 if pos > 0 and source[pos - 1] != '\n':
                     return
                 token = m.group(1) or ''
-                stmt = token + m.group(2).replace(line_join, '')
+                stmt = token + line_join_sub('', m.group(2))
                 token = TOKENS.get(token.rstrip(), 'statement')
                 if token in ('require', 'include', 'extends'):
                     stmt = re.search(r'\(\s*(.*?)\s*\)', stmt).group(1)
                     if token == 'require':
-                        stmt = re.findall(r'([^\s,]+)[,\s]*', stmt)
+                        stmt = re.findall(r'([^\s,]+)[\s,]*', stmt)
                 return (m.end(), token, stmt)
 
         def var_token(source, pos):
             """Produce variable token."""
             m = var_match(source, pos)
-            return m and (m.end(), 'var', m.group(1).replace(line_join, ''))
+            return m and (m.end(), 'var', line_join_sub('', m.group(1)))
 
         def mtok(source, pos, _s=re.compile(r'(\n *%(tok)s)%(tok)s' % d).sub):
             """Produce markup token."""
             m = markup_match(source, pos)
-            return m and (m.end(), 'markup', _s(r'\1', (pos and source[pos-1]
-                          or '\n') + m.group())[1:].replace(line_join, ''))
+            return m and (m.end(), 'markup', line_join_sub('', _s(r'\1',
+                          (source[pos-1] if pos else '\n') + m.group())[1:]))
 
         super(Parser, self).__init__([stmt_token, var_token, mtok])
 
@@ -735,6 +749,7 @@ class Parser(Lexer):
             yield lineno, token, value
 
     def parse_iter(self, tokens):
+        """Process and yield groups of tokens."""
         operands = []
         for lineno, token, value in tokens:
             if token in OUT_TOKENS:
@@ -776,6 +791,7 @@ class BlockBuilder(list):
         self.indent = self.indent[:-4]
 
     def add(self, lineno, code, token='statement'):
+        """Add Python code to the source."""
         assert lineno >= self.lineno
         if code == 'return':
             code = self.writer_return
@@ -804,6 +820,7 @@ class BlockBuilder(list):
         return any(r(self, lineno, value, token) for r in self.rules[token])
 
     def compile_code(self, name):
+        """Compile the generated source code."""
         source = compile('\n'.join(self), name, 'exec', ast.PyCF_ONLY_AST)
         ast.increment_lineno(source, self.offset)
         return compile(source, name, 'exec')
@@ -958,7 +975,7 @@ class Engine(object):
         self.parser = parser or Parser()
 
     def get_template(self, name=None, **kwargs):
-        """Return compiled template."""
+        """Return a compiled template."""
         if name and kwargs:
             self.remove(name)
         try:
@@ -983,6 +1000,7 @@ class Engine(object):
         return self.renders[name](ctx, local_defs, super_defs)
 
     def import_name(self, name, **kwargs):
+        """Compile and return a template as module."""
         try:
             return self.modules[name]
         except KeyError:
@@ -1041,6 +1059,7 @@ engine.global_vars.update({'str': unicode, 'escape': html_escape})
 
 
 def get_template(name=None, source=None, require=None):
+    """Return a compiled template."""
     if source is None:
         if '\n' not in name and '{{' not in name:
             return engine.get_template(name)
@@ -1051,27 +1070,22 @@ def get_template(name=None, source=None, require=None):
 
 
 def render_template(template_name=None, source=None, **context):
+    """Render a template with values of the *context* dictionary."""
     return get_template(template_name, source, context).render(context)
 
 
 # The WSGI HTTP server
 
-def wsgiref_adapter(host, port, handler):
+def run_wsgiref(host, port, handler):
     from wsgiref.simple_server import make_server
     srv = make_server(host, port, handler)
     srv.serve_forever()
 
-WSGI_ADAPTERS = {'wsgiref': wsgiref_adapter}
 
-
-def run_fiole(app=None, server='wsgiref', host=None, port=None, secret=None):
-    """Run the fiole web server."""
+def run_fiole(app=None, server=run_wsgiref, host=None, port=None, secret=None):
+    """Run the *Fiole* web server."""
     global SECRET_KEY
     SECRET_KEY = secret or base64.b64encode(os.urandom(32))
-
-    if server not in WSGI_ADAPTERS:
-        raise RuntimeError("Server '%s' is not a valid server.  "
-                           "Please choose a different server." % server)
 
     assert (app or default_app).routes, "No route defined"
     host = host or DEFAULT_BIND['host']
@@ -1080,7 +1094,7 @@ def run_fiole(app=None, server='wsgiref', host=None, port=None, secret=None):
           'Use Ctrl-C to quit.\n' % (server, host, port))
 
     try:
-        WSGI_ADAPTERS[server](host, port, (app or default_app).handle_request)
+        server(host, port, (app or default_app).handle_request)
     except KeyboardInterrupt:
         print('\nShutting down.  Have a nice day!')
         raise SystemExit(0)
@@ -1088,7 +1102,6 @@ def run_fiole(app=None, server='wsgiref', host=None, port=None, secret=None):
 
 if __name__ == '__main__':
     import optparse
-    import sys
     parser = optparse.OptionParser(version=__version__,
                                    usage="%prog [options] package.module:app")
     parser.add_option('-p', '--port', default='127.0.0.1:8080',
@@ -1098,10 +1111,11 @@ if __name__ == '__main__':
     if len(args) != 1:
         parser.error('a single positional argument is required')
     DEFAULT_BIND.update(host=host or DEFAULT_BIND['host'], port=int(port))
-    (module, sep, target) = args[0].partition(':')
+    (MAIN_MODULE, sep, target) = args[0].partition(':')
     sys.path[:0] = ['.']
     sys.modules.setdefault('fiole', sys.modules['__main__'])
 
     # Load and run server application
-    __import__(module)
-    (getattr(sys.modules[module], target) if target else run_fiole)()
+    __import__(MAIN_MODULE)
+    Fiole.static_folder = os.path.join(_get_root_folder(), 'static')
+    (getattr(sys.modules[MAIN_MODULE], target) if target else run_fiole)()
