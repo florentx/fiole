@@ -46,6 +46,9 @@ See ``examples/`` for more usages:
   python fiole.py examples
 
 
+`Online documentation <https://fiole.readthedocs.org/en/latest/>`_.
+
+
 Thanks
 ======
 
