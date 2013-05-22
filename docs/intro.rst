@@ -27,6 +27,9 @@ Main features:
 and scalable solution, look elsewhere.
 
 
+Link to the PyPI page: https://pypi.python.org/pypi/fiole
+
+
 Quickstart
 ----------
 
