@@ -6,7 +6,6 @@ from fiole import *
 
 LOADED_EXAMPLE = ['__init__']
 EXAMPLES_DIR = os.path.dirname(__file__)
-fiole.TEMPLATE_FOLDER = os.path.join(EXAMPLES_DIR, 'templates')
 
 
 def empty_fiole():
