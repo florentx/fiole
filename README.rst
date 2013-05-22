@@ -65,3 +65,8 @@ The following projects were also a great source of ideas:
 * `Jinja2 <http://jinja.pocoo.org/>`_ and `Mako
   <http://www.makotemplates.org/>`_ (common template engine syntax and
   features)
+
+
+.. image:: https://travis-ci.org/florentx/fiole.png?branch=master
+   :target: https://travis-ci.org/florentx/fiole
+   :alt: Build status
