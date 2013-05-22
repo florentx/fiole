@@ -40,7 +40,7 @@ DEFAULT_BIND = {'host': '127.0.0.1', 'port': 8080}
 SECRET_KEY = None
 MAIN_MODULE = '__main__'
 
-__version__ = '0.1'
+__version__ = '0.2'
 __all__ = ['HTTPError', 'BadRequest', 'Forbidden', 'NotFound',  # HTTP errors
            'MethodNotAllowed', 'InternalServerError', 'Redirect',
            # Base classes
@@ -634,7 +634,7 @@ HTTP_CODES[511] = "Network Authentication Required"
 # The template engine
 
 SPECIAL_TOKENS = 'extends require # include import from def end'.split()
-TOKENS = {'end' + k: 'end' for k in 'for if while with try class'.split()}
+TOKENS = {'end' + k: 'end' for k in 'for if while with try class def'.split()}
 TOKENS.update({k: 'block' for k in 'for if while with try class'.split()})
 TOKENS.update({k: 'continue' for k in 'else elif except finally'.split()})
 TOKENS.update({k: k for k in SPECIAL_TOKENS})
