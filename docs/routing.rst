@@ -58,7 +58,7 @@ The placeholder matches a non-empty path element (excluding ``"/"``)::
 
 The advanced syntax is regex-based.  The variables are extracted from the
 named groups of the regular expression: ``(?P<name>...)``.
-See `Regular Expressions <http://docs.python.org/2/library/re>`__ for the
+See `Regular Expressions <http://docs.python.org/2/library/re>`_ for the
 full syntax.  The unnamed groups are ignored.  The initial ``^``
 and the final ``$`` chars should be omitted: they are automatically added
 when the route is registered.

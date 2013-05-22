@@ -64,8 +64,10 @@ or (on port 4000 for example):
 Next steps
 ----------
 
-Have a look at the ``examples/`` for more use cases.  Run them::
+`Clone the examples <https://github.com/florentx/fiole>`_ and run the demo::
 
+  git clone git://github.com/florentx/fiole.git fiole_git
+  cd fiole_git/
   python fiole.py examples
 
 Read the documentation about :doc:`routing` and :doc:`template`.
@@ -78,8 +80,8 @@ Some features are not yet covered in the documentation:
 * serving through a third-party WSGI server (gevent, ...)
 
 
-Look at the :doc:`api` for crispy details.
+Look at the :doc:`api` for some crispy details.
 
-Read the documentation of `Flask <http://flask.pocoo.org/docs/>`__ and
-`Bottle <http://bottlepy.org/docs/dev/>`__ for more information about
+Read the documentation of `Flask <http://flask.pocoo.org/docs/>`_ and
+`Bottle <http://bottlepy.org/docs/dev/>`_ for more information about
 web development in general.
