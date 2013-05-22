@@ -40,7 +40,7 @@ DEFAULT_BIND = {'host': '127.0.0.1', 'port': 8080}
 SECRET_KEY = None
 MAIN_MODULE = '__main__'
 
-__version__ = '0.1a0'
+__version__ = '0.1'
 __all__ = ['HTTPError', 'BadRequest', 'Forbidden', 'NotFound',  # HTTP errors
            'MethodNotAllowed', 'InternalServerError', 'Redirect',
            # Base classes
