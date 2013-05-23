@@ -25,6 +25,8 @@ Indices and tables
 * :ref:`search`
 
 
+.. _credits:
+
 Credits
 =======
 

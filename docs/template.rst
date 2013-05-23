@@ -4,7 +4,7 @@ Template engine
 ===============
 
 *Parts of this page are converted from the wheezy.template documentation.
-Thank you to the author.*
+Thank you to the author.* (:ref:`akorn<credits>`)
 
 ``Fiole`` comes with a decent template engine.  It supports the usual
 features of well known engines (*Mako*, *Jinja2*).
