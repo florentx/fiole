@@ -220,4 +220,4 @@ Template engine
    .. automethod:: add
    .. automethod:: compile_code
 
-.. _Webext: https://pypi.python.org/pypi/Webext/
+.. _Webext: https://pypi.python.org/pypi/Webext
