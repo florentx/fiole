@@ -105,7 +105,7 @@ def tobytes(value):
     return value.encode('utf-8') if isinstance(value, unicode) else value
 
 
-def html_escape(s):
+def escape_html(s):
     """Escape special chars in HTML string."""
     return cgi.escape(s).replace('"', '&quot;').replace("'", '&#x27;')
 
@@ -1055,7 +1055,7 @@ class Template(object):
         return self.render_template(ctx or kwargs, {}, {})
 
 engine = Engine()
-engine.global_vars.update({'str': unicode, 'escape': html_escape})
+engine.global_vars.update({'str': unicode, 'escape': escape_html})
 
 
 def get_template(name=None, source=None, require=None):
