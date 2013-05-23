@@ -17,7 +17,7 @@ Main features:
 * :doc:`Routing <routing>`
 * :doc:`Methods GET/HEAD/POST/PUT/DELETE <routing>`
 * :ref:`Error handlers <helpers>`
-* File uploads (:func:`Request.POST`)
+* File uploads (:data:`Request.POST`)
 * :ref:`Static files <helpers>`
 * :doc:`Fast template engine <template>`
 * Secure cookies (:func:`Request.get_cookie`, :func:`Response.set_cookie`, ...)
@@ -36,7 +36,7 @@ Quickstart
 Either download the single file :download:`fiole.py<../fiole.py>` and save it in your
 project directory, or ``pip install fiole``, preferably in a ``virtualenv``.
 
-Then create the first example and save it with name ``hello.py``:
+Create an application and save it with name ``hello.py``:
 
 ::
 
@@ -52,22 +52,26 @@ Then create the first example and save it with name ``hello.py``:
 
 Then run this example (default port 8080) with:
 
-::
+.. code-block:: bash
 
   python hello.py
 
 
 or (on port 4000 for example):
 
-::
+.. code-block:: bash
 
   python fiole.py -p 4000 hello
+  # (or)
+  python -m fiole -p 4000 hello
 
 
 Next steps
 ----------
 
-`Clone the examples <https://github.com/florentx/fiole>`_ and run the demo::
+`Clone the examples <https://github.com/florentx/fiole>`_ and run the demo:
+
+.. code-block:: bash
 
   git clone git://github.com/florentx/fiole.git fiole_git
   cd fiole_git/

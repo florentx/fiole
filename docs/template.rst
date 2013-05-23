@@ -84,14 +84,15 @@ Following directives are supported:
   to generate the current document.  This should be the first line.
 * ``%require(firstname, lastname)``: Declare the variables which are expected
   when rendering the template.
-* ``%include("footer.html")``: Insert the template content just here.
+* ``%include("footer.html")``: Render the template and insert the output
+  just here.
 * ``%import "widgets.tmpl" as widgets``: Import reusable helpers from another
   template.
 * ``%from "toolbox.tmpl" import popup``: Import a function from the other
   template.
 * ``%def``: Define a Python function (used for inheritance: ``%extends``
   or ``%import``).
-* ``%end``: End the Python function definition.
+* ``%end`` or ``%enddef``: End the Python function definition.
 
 
 .. _template_python_code:
