@@ -29,6 +29,8 @@ and scalable solution, look elsewhere.
 
 Link to the PyPI page: https://pypi.python.org/pypi/fiole
 
+Tested against: Python 2.7, PyPy 2.0 and Python >= 3.2
+
 
 Quickstart
 ----------
