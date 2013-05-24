@@ -137,6 +137,16 @@ function calls, etc...
 The expression must return a Unicode string, or use the ``|s`` filter
 when appropriate::
 
+    >>> render_template(source='# {{ a }} - {{ b }} = {{ a - b }}', a=56, b=14)
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+      File "./fiole.py", line 1076, in render_template
+        return get_template(template_name, source, context).render(context)
+      File "./fiole.py", line 1057, in render
+        return self.render_template(ctx or kwargs, {}, {})
+      File "<string>", line 3, in render
+    TypeError: sequence item 1: expected str instance, int found
+    >>>
     >>> render_template(source='# {{ a|s }} - {{ b|s }} = {{ a - b|s }}', a=56, b=14)
     u'# 56 - 14 = 42'
 
