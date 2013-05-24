@@ -124,7 +124,7 @@ def format_timestamp(ts):
 
 def compare_digest(a, b):
     result = len(a) ^ len(b)
-    for x, y in zip(a, b):
+    for (x, y) in zip(a, b):
         result |= ord(x) ^ ord(y)
     return not result
 
@@ -308,7 +308,7 @@ class EnvironHeaders(HTTPHeaders):
         return self.environ.get('HTTP_' + key)
 
     def __iter__(self):
-        for key, value in self.environ.items():
+        for (key, value) in self.environ.items():
             if key.startswith('HTTP_'):
                 if key not in ('HTTP_CONTENT_TYPE', 'HTTP_CONTENT_LENGTH'):
                     yield (key[5:].replace('_', '-').title(), value)
@@ -385,7 +385,7 @@ class Request(object):
         raw_query_dict = parse_qs(self.query, keep_blank_values=1)
         query_dict = {}
 
-        for key, value in raw_query_dict.items():
+        for (key, value) in raw_query_dict.items():
             query_dict[key] = value if len(value) > 1 else value[0]
         return query_dict
 
@@ -743,7 +743,7 @@ class Parser(Lexer):
         """If token is ``continue`` prepend it with ``end`` token so
         it simulates a closed block.
         """
-        for lineno, token, value in tokens:
+        for (lineno, token, value) in tokens:
             if token == 'continue':
                 yield lineno, 'end', None
                 token = 'compound'
@@ -752,7 +752,7 @@ class Parser(Lexer):
     def parse_iter(self, tokens):
         """Process and yield groups of tokens."""
         operands = []
-        for lineno, token, value in tokens:
+        for (lineno, token, value) in tokens:
             if token in OUT_TOKENS:
                 operands.append((lineno, token, value))
                 continue
@@ -811,7 +811,7 @@ class BlockBuilder(list):
         return self     # Convenient for the context manager API
 
     def build_block(self, nodes):
-        for lineno, token, value in nodes:
+        for (lineno, token, value) in nodes:
             self.build_token(lineno, value, token)
         return True
 
@@ -911,7 +911,7 @@ class BlockBuilder(list):
 
     def build_out(self, lineno, nodes, token):
         assert token == 'out'
-        for lineno, token, value in nodes:
+        for (lineno, token, value) in nodes:
             if token == 'include':
                 value = '_r(' + value + ', ctx, local_defs, super_defs)'
             elif token == 'var':
