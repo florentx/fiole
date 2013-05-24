@@ -635,10 +635,10 @@ HTTP_CODES[511] = "Network Authentication Required"
 
 SPECIAL_TOKENS = 'extends require # include import from def end'.split()
 TOKENS = {'end' + k: 'end' for k in 'for if while with try class def'.split()}
-TOKENS.update({k: 'block' for k in 'for if while with try class'.split()})
+TOKENS.update({k: 'compound' for k in 'for if while with try class'.split()})
 TOKENS.update({k: 'continue' for k in 'else elif except finally'.split()})
 TOKENS.update({k: k for k in SPECIAL_TOKENS})
-COMPOUND_TOKENS = {'extends', 'def', 'block', 'continue'}
+COMPOUND_TOKENS = {'extends', 'def', 'compound'}
 OUT_TOKENS = {'markup', 'var', 'include'}
 isidentifier = re.compile(r'[a-zA-Z_]\w*').match
 setdefs = "super_defs['?'] = ?; ? = local_defs.setdefault('?', ?)".replace
@@ -746,6 +746,7 @@ class Parser(Lexer):
         for lineno, token, value in tokens:
             if token == 'continue':
                 yield lineno, 'end', None
+                token = 'compound'
             yield lineno, token, value
 
     def parse_iter(self, tokens):
@@ -831,10 +832,10 @@ class BlockBuilder(list):
         assert token == 'render'
         if len(nodes) not in (1, 2):    # Ignore 'require' before 'extends'
             return
-        lineno, token, value = nodes[-1]
+        (lineno, token, value) = nodes[-1]
         if token != 'extends':
             return
-        extends, nodes = value
+        (extends, nodes) = value
         stmt = 'return _r(' + extends + ', ctx, local_defs, super_defs)'
         self.build_block([n for n in nodes if n[1] in ('def', 'require')])
         return self.add(self.lineno + 1, stmt)
@@ -849,10 +850,10 @@ class BlockBuilder(list):
 
     def build_from(self, lineno, value, token):
         assert token == 'from'
-        name, tok2, var = value[5:].rsplit(None, 2)
+        (name, tok2, var) = value[5:].rsplit(None, 2)
         alias = var
         if tok2 == 'as':
-            name, tok2, var = name.rsplit(None, 2)
+            (name, tok2, var) = name.rsplit(None, 2)
         assert tok2 == 'import'
         if name in self.local_vars or not isidentifier(name):
             value = "%s = _i(%s).local_defs['%s']" % (alias, name, var)
@@ -863,9 +864,9 @@ class BlockBuilder(list):
         if not nodes:
             return self.add(lineno, "return ''")
         if len(nodes) == 1:
-            ln, token, nodes = nodes[0]
+            (ln, token, nodes) = nodes[0]
             if token == 'out' and len(nodes) == 1:
-                ln, token, value = nodes[0]
+                (ln, token, value) = nodes[0]
                 if token == 'markup':
                     return self.add(ln, "return %r" % value)
 
@@ -875,40 +876,32 @@ class BlockBuilder(list):
         self.build_block(nodes)
         return self.add(self.lineno + 1, self.writer_return)
 
-    def build_def_syntax_check(self, lineno, value, token):
+    def build_def_single_markup(self, lineno, value, token):
         assert token == 'def'
-        stmt, nodes = value
-        lineno, token, value = nodes[0]
+        (stmt, nodes) = value
+        (ln, token, subnodes) = nodes[0]
         if token in COMPOUND_TOKENS:
-            token = token.rstrip()
             error = ("The compound statement '%s' is not allowed here. "
                      "Add a line before it with %%#ignore.\n\n%s\n"
                      "    %%#ignore\n    %%%s ..." % (token, stmt, token))
             with self.add(lineno, stmt):
-                return self.add(lineno, 'raise SyntaxError(%r)' % error)
-
-    def build_def_single_markup(self, lineno, value, token):
-        assert token == 'def'
-        stmt, nodes = value
+                return self.add(ln, 'raise SyntaxError(%r)' % error)
         if len(nodes) > 2:
             return
+        (ln, value) = (lineno, '')
         if len(nodes) == 2:
-            ln, token, nodes = nodes[0]
-            if token != 'out' or len(nodes) > 1:
+            if token != 'out' or len(subnodes) > 1:
                 return
-            ln, token, value = nodes[0]
+            (ln, token, value) = subnodes[0]
             if token != 'markup':
                 return
-            value = repr(value)
-        else:
-            ln, value = lineno, "''"
         with self.add(lineno, stmt):
-            self.add(ln, "return " + value)
+            self.add(ln, "return " + repr(value))
         return self.add(ln + 1, setdefs('?', stmt[4:stmt.index('(', 5)]))
 
     def build_def(self, lineno, value, token):
         assert token == 'def'
-        stmt, nodes = value
+        (stmt, nodes) = value
         with self.add(lineno, stmt):
             self.add(lineno + 1, self.writer_declare)
             self.build_block(nodes)
@@ -933,8 +926,8 @@ class BlockBuilder(list):
                 self.add(lineno, 'w(' + value + ')')
 
     def build_compound(self, lineno, value, token):
-        assert token in COMPOUND_TOKENS
-        stmt, nodes = value
+        assert token == 'compound'
+        (stmt, nodes) = value
         with self.add(lineno, stmt):
             return self.build_block(nodes)
 
@@ -950,17 +943,12 @@ class BlockBuilder(list):
 
     rules = {
         'render': [build_extends, build_render_single_markup, build_render],
-        'import': [build_import],
-        'from': [build_from],
-        'require': [build_require],
-        'out': [build_out],
-        'def': [build_def_syntax_check, build_def_single_markup, build_def],
-        'block': [build_compound],
-        'continue': [build_compound],
-        'end': [build_end],
+        'def': [build_def_single_markup, build_def],
         'statement': [add],
         '#': [],
     }
+    for name in ('import', 'from', 'require', 'out', 'compound', 'end'):
+        rules[name] = [locals()['build_' + name]]
 
 
 class Engine(object):
@@ -1013,7 +1001,7 @@ class Engine(object):
             return self.templates[name]
         nodes = self.load_and_parse(name, **kwargs)
         def_render = 'def render(ctx, local_defs, super_defs):'
-        nodes = [(-1, 'block', (def_render, [(0, 'render', list(nodes))]))]
+        nodes = [(-1, 'compound', (def_render, [(0, 'render', list(nodes))]))]
         source = BlockBuilder(lineno=-2, nodes=nodes)
         compiled = source.compile_code(name or '<string>')
         local_vars = {}

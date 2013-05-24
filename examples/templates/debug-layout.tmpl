@@ -1,11 +1,11 @@
 %require(title, request)
-%def content():
-%enddef
 <html>
   <head>
     <title>{{title}}</title>
   </head>
   <body>
+%def content():
+%enddef
 {{ content() }}\
     <hr>
     <pre>[request.GET]

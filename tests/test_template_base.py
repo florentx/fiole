@@ -66,9 +66,9 @@ class ParserTestCase(unittest.TestCase):
         nodes = list(self.parser.end_continue(tokens))
         self.assertEqual(len(nodes), 7)
         self.assertEqual(nodes[1], (2, 'end', None))
-        self.assertEqual(nodes[2], (2, 'continue', 12))
+        self.assertEqual(nodes[2], (2, 'compound', 12))
         self.assertEqual(nodes[4], (4, 'end', None))
-        self.assertEqual(nodes[5], (4, 'continue', 14))
+        self.assertEqual(nodes[5], (4, 'compound', 14))
 
     def test_parse_unchanged(self):
         """No parser tokens defined the result is unchanged input."""
@@ -115,18 +115,18 @@ class ParserTestCase(unittest.TestCase):
             (5, 'markup', 15)]))
 
     def test_compound(self):
-        # COMPOUND_TOKENS = ['extends', 'def', 'block', 'continue']
+        # COMPOUND_TOKENS = ['extends', 'def', 'compound']
         tokens = [
-            (1, 'a', 11),
-            (2, 'extends', 12),
-            (3, 'end', 13),
-            (4, 'def', 14),
-            (5, 'end', 15),
+            (1, 'a', '11'),
+            (2, 'extends', '12'),
+            (3, 'end', '13'),
+            (4, 'def', '14'),
+            (5, 'end', '15'),
         ]
         nodes = self.parse(tokens)
         self.assertEqual(len(nodes), 3)
-        self.assertEqual(nodes[1], (2, 'extends', (12, [(3, 'end', 13)])))
-        self.assertEqual(nodes[2], (4, 'def', (14, [(5, 'end', 15)])))
+        self.assertEqual(nodes[1], (2, 'extends', ('12', [(3, 'end', '13')])))
+        self.assertEqual(nodes[2], (4, 'def', ('14', [(5, 'end', '15')])))
 
 
 class BlockBuilderTestCase(unittest.TestCase):

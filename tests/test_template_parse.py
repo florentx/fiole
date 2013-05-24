@@ -113,14 +113,14 @@ class LexerTestCase(unittest.TestCase):
                                   (2, 'var', '[i  for i in range(17)]|s'),
                                   (3, 'markup', ' x')])
         tokens = self.tokenize('% for i in range(22):\n  print(i)\n% endfor')
-        self.assertEqual(tokens, [(1, 'block', 'for i in range(22):'),
+        self.assertEqual(tokens, [(1, 'compound', 'for i in range(22):'),
                                   (2, 'markup', '  print(i)\n'),
                                   (3, 'end', 'endfor')])
         tokens = self.tokenize('% for i in range(22):\\\n  print(i)\n% endfor')
-        self.assertEqual(tokens, [(1, 'block', 'for i in range(22):  print(i)'),
+        self.assertEqual(tokens, [(1, 'compound', 'for i in range(22):  print(i)'),
                                   (3, 'end', 'endfor')])
         tokens = self.tokenize('% for i in range(22):\n  print(i)\\\n% endfor')
-        self.assertEqual(tokens, [(1, 'block', 'for i in range(22):'),
+        self.assertEqual(tokens, [(1, 'compound', 'for i in range(22):'),
                                   (2, 'markup', '  print(i)'),
                                   (3, 'end', 'endfor')])
         # CR LF
@@ -139,14 +139,14 @@ class LexerTestCase(unittest.TestCase):
                                   (2, 'var', '[i  for i in range(17)]|s'),
                                   (3, 'markup', ' x')])
         tokens = self.tokenize('% for i in range(22):\r\n  print NL\r\n% endfor')
-        self.assertEqual(tokens, [(1, 'block', 'for i in range(22):'),
+        self.assertEqual(tokens, [(1, 'compound', 'for i in range(22):'),
                                   (2, 'markup', '  print NL\n'),
                                   (3, 'end', 'endfor')])
         tokens = self.tokenize('% for i in range(22):\\\r\n  print(i)\r\n% endfor')
-        self.assertEqual(tokens, [(1, 'block', 'for i in range(22):  print(i)'),
+        self.assertEqual(tokens, [(1, 'compound', 'for i in range(22):  print(i)'),
                                   (3, 'end', 'endfor')])
         tokens = self.tokenize('% for i in range(22):\r\n  skip NL\\\r\n% endfor')
-        self.assertEqual(tokens, [(1, 'block', 'for i in range(22):'),
+        self.assertEqual(tokens, [(1, 'compound', 'for i in range(22):'),
                                   (2, 'markup', '  skip NL'),
                                   (3, 'end', 'endfor')])
 

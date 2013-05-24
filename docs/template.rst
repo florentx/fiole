@@ -126,7 +126,7 @@ This declaration is omitted when rendering the string directly::
 
     >>> render_template(source='Hello {{party}}!', party='World')
     u'Hello World!'
-    >>>
+    >>> #
     >>> render_template(source='Hello {{ party.capitalize() }}!', party='world')
     u'Hello World!'
 
@@ -146,7 +146,7 @@ when appropriate::
         return self.render_template(ctx or kwargs, {}, {})
       File "<string>", line 3, in render
     TypeError: sequence item 1: expected str instance, int found
-    >>>
+    >>> #
     >>> render_template(source='# {{ a|s }} - {{ b|s }} = {{ a - b|s }}', a=56, b=14)
     u'# 56 - 14 = 42'
 
