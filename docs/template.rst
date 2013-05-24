@@ -363,10 +363,10 @@ Here is a simple example:
     %if items:
       %for i in items:
         {{i.name}}: {{i.price|s}}.
-      %enddef
+      %endfor
     %else:
       No items found.
-    %enddef
+    %endif
 
 
 Line Comments
