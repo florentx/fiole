@@ -760,11 +760,10 @@ class Parser(Lexer):
                 if token != 'extends' and vals and vals[-1][1] != 'end':
                     raise SyntaxError('Missing "end" statement at line %d.' %
                                       vals[-1][0])
-                yield lineno, token, (value, vals)
-            else:
-                yield lineno, token, value
-                if token == 'end':
-                    break
+                value = (value, vals)
+            yield lineno, token, value
+            if token == 'end':
+                break
         if operands:
             yield operands[0][0], 'out', operands
 
