@@ -14,3 +14,10 @@ platform <http://travis-ci.org/florentx/fiole>`_.
 Project on PyPI: https://pypi.python.org/pypi/fiole
 
 .. _available on GitHub: https://github.com/florentx/fiole
+
+
+Changes
+-------
+
+.. include:: ../CHANGES.rst
+   :start-line: 3
