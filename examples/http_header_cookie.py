@@ -71,4 +71,7 @@ def clear_cookies(request):
     return response
 
 
-run_fiole(secret_key='MySeCrEtCoOkIe')
+if __name__ == '__main__':
+    # Run
+    get_app().secret_key = 'MySeCrEtCoOkIe'
+    run_fiole()

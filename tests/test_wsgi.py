@@ -14,15 +14,12 @@ b = (lambda s: s.encode('utf-8')) if PY3 else (lambda s: s)
 
 
 class FioleTestCase(unittest.TestCase):
-    _cookie_secret = fiole.SECRET_KEY
 
     def setUp(self):
         fiole.Fiole.push()
-        fiole.SECRET_KEY = self._cookie_secret
 
     def tearDown(self):
         fiole.Fiole.pop()
-        fiole.SECRET_KEY = self._cookie_secret
 
     def assertNoError(self, response):
         self.assertFalse(response['errors'], msg=response['errors'])
@@ -333,7 +330,7 @@ class FioleTestCase(unittest.TestCase):
         self.assertEqual(rv['data'], ['gästõn', 'czpwoe83q8ape2ji23jxnm'])
 
     def test_secure_cookie(self):
-        fiole.SECRET_KEY = 's e c r e t'
+        fiole.get_app().secret_key = 's e c r e t'
 
         @fiole.get('/receive')
         def receive_cookies(request):

@@ -28,7 +28,7 @@ Decorators and helpers
    Default :class:`Fiole` application.
 
 .. autofunction:: get_app
-.. autofunction:: run_fiole(app=None, server=run_wsgiref, host=None, port=None, secret=None)
+.. autofunction:: run_fiole(app=default_app, server=run_wsgiref, host=None, port=None)
 
 
 WSGI application
@@ -38,6 +38,10 @@ WSGI application
 
    .. automethod:: push
    .. automethod:: pop
+   .. attribute:: secret_key
+
+      Secret key used to sign secure cookies.  (default: *unset*)
+
    .. attribute:: static_folder
 
       Directory where static files are located.  (default: *./static*)
@@ -51,6 +55,8 @@ WSGI application
    .. automethod:: put
    .. automethod:: delete
    .. automethod:: errorhandler
+   .. automethod:: encode_signed
+   .. automethod:: decode_signed
    .. automethod:: send_file
 
 .. autoclass:: Request
@@ -105,7 +111,6 @@ WSGI application
    .. automethod:: set_cookie
    .. automethod:: clear_cookie
    .. automethod:: set_secure_cookie
-   .. automethod:: create_signed_value
    .. automethod:: send
 
 .. autoclass:: HTTPHeaders

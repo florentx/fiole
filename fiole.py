@@ -37,7 +37,6 @@ except ImportError:   # Python 2
     recode = lambda s: s.decode('utf-8')
 
 DEFAULT_BIND = {'host': '127.0.0.1', 'port': 8080}
-SECRET_KEY = None
 MAIN_MODULE = '__main__'
 
 __version__ = '0.2'
@@ -127,24 +126,6 @@ def compare_digest(a, b):
     for (x, y) in zip(a, b):
         result |= ord(x) ^ ord(y)
     return not result
-
-
-def _create_signed_value(secret, name, value):
-    value = base64.b64encode(tobytes(value)).decode('utf-8')
-    timestamp = '%X' % time.time()
-    signature = _create_signature(secret, name, value, timestamp)
-    return (value + '|' + timestamp + '|' + signature)
-
-
-def _decode_signed_value(secret, name, value, max_age_days=31):
-    parts = (value or '').split("|")
-    if len(parts) != 3:
-        return  # Invalid
-    if time.time() - int(parts[1], 16) > max_age_days * 86400:
-        return  # Expired
-    signature = _create_signature(secret, name, parts[0], parts[1])
-    if compare_digest(parts[2], signature):
-        return base64.b64decode(parts[0].encode('ascii')).decode('utf-8')
 
 
 def _create_signature(secret, *parts):
@@ -377,8 +358,8 @@ class Request(object):
         """Return the given signed cookie if it validates, or None."""
         if value is None:
             value = self.get_cookie(name)
-        return _decode_signed_value(SECRET_KEY, name, value,
-                                    max_age_days=max_age_days)
+        app = self.environ['fiole.app']
+        return app.decode_signed(name, value, max_age_days=max_age_days)
 
     def build_get_dict(self):
         """Take GET data and rip it apart into a dict."""
@@ -422,45 +403,37 @@ class Response(object):
         self.headers['Content-Type'] = content_type
 
     def set_cookie(self, name, value, domain=None, expires=None, path="/",
-                   expires_days=None, **kwargs):
+                   expires_days=None, signed=None, **kwargs):
         """Set the given cookie name/value with the given options."""
         name = str(name)
         value = value if isinstance(value, str) else value.encode('utf-8')
         if re.search(r"[\x00-\x20]", name + value):
             raise ValueError("Invalid cookie %r: %r" % (name, value))
-        if not hasattr(self, "_new_cookie"):
-            self._new_cookie = SimpleCookie()
-        if name in self._new_cookie:
-            del self._new_cookie[name]
-        self._new_cookie[name] = value
-        morsel = self._new_cookie[name]
-        if domain:
-            morsel["domain"] = domain
         if expires_days is not None and not expires:
             expires = datetime.utcnow() + timedelta(days=expires_days)
-        if expires:
-            morsel["expires"] = format_timestamp(expires)
-        if path:
-            morsel["path"] = path
-        for (k, v) in kwargs.items():
-            if k == 'max_age':
-                k = 'max-age'
-            morsel[k] = v
+        attrs = [("domain", domain), ("path", path),
+                 ("expires", expires and format_timestamp(expires))]
+        if "max_age" in kwargs:
+            attrs.append(("max-age", kwargs.pop("max_age")))
+        if not hasattr(self, "_new_cookie"):
+            self._new_cookie = SimpleCookie()
+        elif name in self._new_cookie:
+            del self._new_cookie[name]
+        self._new_cookie[name] = value if not signed else ""
+        morsel = self._new_cookie[name]
+        for (key, val) in attrs + list(kwargs.items()):
+            morsel[key] = val or ""
+        morsel._signed = signed and value
 
     def clear_cookie(self, name, path="/", domain=None):
         """Delete the cookie with the given name."""
-        expires = datetime.utcnow() - timedelta(days=365)
-        self.set_cookie(name, value="", path=path, expires=expires,
-                        domain=domain)
+        self.set_cookie(
+            name, value="", path=path, expires_days=(-365), domain=domain)
 
     def set_secure_cookie(self, name, value, expires_days=30, **kwargs):
         """Sign and timestamp a cookie so it cannot be forged."""
-        self.set_cookie(name, self.create_signed_value(name, value),
-                        expires_days=expires_days, **kwargs)
-
-    def create_signed_value(self, name, value):
-        """Return a signed string with timestamp."""
-        return _create_signed_value(SECRET_KEY, name, value)
+        self.set_cookie(
+            name, value, expires_days=expires_days, signed=True, **kwargs)
 
     def send(self, environ, start_response):
         """Send the headers and return the body of the response."""
@@ -469,7 +442,11 @@ class Response(object):
         if not self.wrapped:
             self.headers['Content-Length'] = str(len(output[0]))
         if hasattr(self, "_new_cookie"):
+            app = environ['fiole.app']
             for cookie in self._new_cookie.values():
+                if cookie._signed is not None:
+                    self._new_cookie[cookie.key] = (
+                        app.encode_signed(cookie.key, cookie._signed))
                 self.headers.add("Set-Cookie", cookie.OutputString(None))
         start_response(status, self.headers.to_list())
         return output if (environ['REQUEST_METHOD'] != 'HEAD') else ()
@@ -498,6 +475,7 @@ class Fiole(object):
     def handle_request(self, environ, start_response):
         """The main handler.  Dispatch to the user's code."""
         try:
+            environ['fiole.app'] = self
             request = Request(environ)
             (callback, kwargs, status) = self.find_matching_url(request)
             response = callback(request, **kwargs)
@@ -536,6 +514,24 @@ class Fiole(object):
             raise MethodNotAllowed("The HTTP request method '%s' is "
                                    "not supported." % request.method)
         raise NotFound("Sorry, nothing here.")
+
+    def encode_signed(self, name, value):
+        """Return a signed string with timestamp."""
+        value = base64.b64encode(tobytes(value)).decode('utf-8')
+        timestamp = '%X' % time.time()
+        signature = _create_signature(self.secret_key, name, value, timestamp)
+        return (value + '|' + timestamp + '|' + signature)
+
+    def decode_signed(self, name, value, max_age_days=31):
+        """Decode a signed string with timestamp or return ``None``."""
+        try:
+            (value, timestamp, signed) = value.split('|')
+        except (ValueError, AttributeError):
+            return  # Invalid
+        signature = _create_signature(self.secret_key, name, value, timestamp)
+        if (compare_digest(signed, signature) and
+                time.time() - int(timestamp, 16) < max_age_days * 86400):
+            return base64.b64decode(value.encode('ascii')).decode('utf-8')
 
     def send_file(self, request, filename, root=None, content_type=None,
                   buffer_size=64 * 1024):
@@ -1070,19 +1066,18 @@ def run_wsgiref(host, port, handler):
     srv.serve_forever()
 
 
-def run_fiole(app=None, server=run_wsgiref, host=None, port=None, secret=None):
+def run_fiole(app=default_app, server=run_wsgiref, host=None, port=None):
     """Run the *Fiole* web server."""
-    global SECRET_KEY
-    SECRET_KEY = secret or base64.b64encode(os.urandom(32))
-
-    assert (app or default_app).routes, "No route defined"
+    if not hasattr(app, 'secret_key'):
+        app.secret_key = base64.b64encode(os.urandom(33))
+    assert app.routes, "No route defined"
     host = host or DEFAULT_BIND['host']
     port = int(port or DEFAULT_BIND['port'])
     print('`fiole` starting up (using %s)...\nListening on http://%s:%s...\n'
           'Use Ctrl-C to quit.\n' % (server, host, port))
 
     try:
-        server(host, port, (app or default_app).handle_request)
+        server(host, port, app.handle_request)
     except KeyboardInterrupt:
         print('\nShutting down.  Have a nice day!')
         raise SystemExit(0)
