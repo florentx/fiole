@@ -189,7 +189,7 @@ class FioleTestCase(unittest.TestCase):
 
         rv = handle_single_request('GET /')
         self.assertNoError(rv)
-        self.assertEqual(rv['data'], [b('')])
+        self.assertEqual(rv['data'], [])
 
     def test_redirect(self):
 
@@ -199,7 +199,7 @@ class FioleTestCase(unittest.TestCase):
 
         rv = handle_single_request('GET /')
         self.assertEqual(rv['status'], '302 Found')
-        self.assertEqual(rv['data'], [b('')])
+        self.assertEqual(rv['data'], [])
         self.assertIn(('Location', '/far'), rv['headers'])
 
     def test_redirect_error_handler(self):
@@ -214,7 +214,7 @@ class FioleTestCase(unittest.TestCase):
 
         rv = handle_single_request('GET /')
         self.assertEqual(rv['status'], '302 Found')
-        self.assertEqual(rv['data'], [b('')])
+        self.assertEqual(rv['data'], [])
         self.assertIn(('Location', '/far'), rv['headers'])
         # Is it correct?
         self.assertIn('ZeroDivisionError', rv['errors'])
@@ -390,14 +390,43 @@ class FioleTestCase(unittest.TestCase):
         self.assertEqual(path2, 'Path=/')
 
     def test_send_file(self):
-        fname = os.path.join(os.path.dirname(__file__), '__init__.py')
+        fname = fiole.__file__
         rootdir, fname = os.path.split(fname)
+        self.assertTrue(os.path.isabs(fiole.__file__))
 
         @fiole.get('/img/logo.png')
         def img_logo(request):
             return fiole.send_file(request, fname, root=rootdir)
 
         rv = handle_single_request('GET /img/logo.png')
+        try:
+            self.assertNoError(rv)
+            data = b('').join([chunk for chunk in rv['data']])
+            with open(os.path.join(rootdir, fname), 'rb') as f:
+                self.assertEqual(data, f.read())
+        finally:
+            rv['data'].close()
+
+    def test_send_file_not_modified(self):
+        fname = fiole.__file__
+        mtime = os.path.getmtime(fname)
+        rootdir, fname = os.path.split(fname)
+
+        @fiole.get('/img/logo.png')
+        def img_logo(request):
+            return fiole.send_file(request, fname, root=rootdir)
+
+        past_date = fiole.format_timestamp(mtime - 42)
+        next_date = fiole.format_timestamp(mtime + 42)
+
+        rv = handle_single_request('GET /img/logo.png',
+                                   HTTP_IF_MODIFIED_SINCE=next_date)
+        self.assertFalse(rv['errors'], msg=rv['errors'])
+        self.assertEqual(rv['status'], '304 Not Modified')
+        self.assertEqual(rv['data'], [])
+
+        rv = handle_single_request('GET /img/logo.png',
+                                   HTTP_IF_MODIFIED_SINCE=past_date)
         try:
             self.assertNoError(rv)
             data = b('').join([chunk for chunk in rv['data']])

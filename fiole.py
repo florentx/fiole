@@ -16,7 +16,7 @@ import sys
 import time
 import traceback
 from datetime import datetime, timedelta
-from email.utils import formatdate
+from email.utils import formatdate, mktime_tz, parsedate_tz
 from functools import update_wrapper, wraps
 from mimetypes import guess_type as guess_ct
 from threading import Lock
@@ -438,9 +438,10 @@ class Response(object):
     def send(self, environ, start_response):
         """Send the headers and return the body of the response."""
         status = "%d %s" % (self.status, HTTP_CODES.get(self.status))
-        output = self.output if self.wrapped else [tobytes(self.output or '')]
+        body = ([] if (not self.output or environ['REQUEST_METHOD'] == 'HEAD')
+                else self.output if self.wrapped else [tobytes(self.output)])
         if not self.wrapped:
-            self.headers['Content-Length'] = str(len(output[0]))
+            self.headers['Content-Length'] = str(body and len(body[0]) or 0)
         if hasattr(self, "_new_cookie"):
             app = environ['fiole.app']
             for cookie in self._new_cookie.values():
@@ -449,7 +450,7 @@ class Response(object):
                         app.encode_signed(cookie.key, cookie._signed))
                 self.headers.add("Set-Cookie", cookie.OutputString(None))
         start_response(status, self.headers.to_list())
-        return output if (environ['REQUEST_METHOD'] != 'HEAD') else ()
+        return body
 
 
 class Fiole(object):
@@ -548,9 +549,15 @@ class Fiole(object):
         if not os.access(desired_path, os.R_OK):
             raise Forbidden("You do not have permission to access this file.")
         stat = os.stat(desired_path)
+        try:
+            ims = parsedate_tz(request.headers['If-Modified-Since'].strip())
+        except Exception:
+            ims = None
+        if ims and int(stat.st_mtime) <= mktime_tz(ims):    # 304 Not Modified
+            return Response(None, status=304, wrapped=True)
+
         headers = {'Content-Length': str(stat.st_size),
                    'Last-Modified': format_timestamp(stat.st_mtime)}
-
         if not content_type:
             content_type = guess_ct(filename)[0] or 'application/octet-stream'
         file_wrapper = request.environ.get('wsgi.file_wrapper', FileWrapper)

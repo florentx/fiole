@@ -21,6 +21,9 @@ Changelog
 * Remove argument ``secret`` from the ``run_fiole`` function: use
   ``get_app().secret_key = 's3c4e7k3y...'`` instead.
 
+* The ``send_file`` helper recognizes the ``If-Modified-Since`` header and
+  return *304 Not Modified* appropriately.
+
 * Rename helper ``html_escape`` to ``escape_html``.
 
 * Refactor the internals of the template engine.
