@@ -438,8 +438,8 @@ class Response(object):
     def send(self, environ, start_response):
         """Send the headers and return the body of the response."""
         status = "%d %s" % (self.status, HTTP_CODES.get(self.status))
-        body = ([] if (not self.output or environ['REQUEST_METHOD'] == 'HEAD')
-                else self.output if self.wrapped else [tobytes(self.output)])
+        body = (self.output if self.wrapped else
+                [tobytes(self.output)]) if self.output else []
         if not self.wrapped:
             self.headers['Content-Length'] = str(body and len(body[0]) or 0)
         if hasattr(self, "_new_cookie"):
@@ -450,7 +450,7 @@ class Response(object):
                         app.encode_signed(cookie.key, cookie._signed))
                 self.headers.add("Set-Cookie", cookie.OutputString(None))
         start_response(status, self.headers.to_list())
-        return body
+        return body if environ['REQUEST_METHOD'] != 'HEAD' else []
 
 
 class Fiole(object):
@@ -847,7 +847,7 @@ class BlockBuilder(list):
         parts = value[7:].rsplit(None, 2)
         if len(parts) == 3 and parts[1] == 'as':
             if parts[0] in self.local_vars or not isidentifier(parts[0]):
-                return self.add(lineno, parts[2] + ' = _i(' + parts[0] + ')')
+                value = "%s = _i(%s)" % (parts[2], parts[0])
         return self.add(lineno, value)
 
     def build_from(self, lineno, value, token):

@@ -40,6 +40,20 @@ class FioleTestCase(unittest.TestCase):
             'errors': '',
         })
 
+    def test_head(self):
+        @fiole.get('/')
+        def index(request):
+            return 'Hello World!'
+        rv = handle_single_request('HEAD /')
+        self.assertNoError(rv)
+        self.assertEqual(rv, {
+            'status': '200 OK',
+            'headers': [('Content-Type', 'text/html; charset=utf-8'),
+                        ('Content-Length', '12')],
+            'data': [],
+            'errors': '',
+        })
+
     def test_request_dispatching(self):
         @fiole.get('/')
         def index(request):
@@ -434,3 +448,20 @@ class FioleTestCase(unittest.TestCase):
                 self.assertEqual(data, f.read())
         finally:
             rv['data'].close()
+
+    def test_send_file_head(self):
+        fname = fiole.__file__
+        rootdir, fname = os.path.split(fname)
+
+        @fiole.get('/img/logo.png')
+        def img_logo(request):
+            return fiole.send_file(request, fname, root=rootdir)
+
+        rv = handle_single_request('HEAD /img/logo.png')
+        self.assertNoError(rv)
+        self.assertEqual(rv['data'], [])
+        hdrs = dict(rv['headers'])
+        self.assertEqual(sorted(hdrs), ['Content-Length', 'Content-Type',
+                                        'Last-Modified'])
+        self.assertEqual(int(hdrs['Content-Length']),
+                         os.path.getsize(fiole.__file__))
