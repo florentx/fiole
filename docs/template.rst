@@ -1,6 +1,6 @@
 .. currentmodule:: fiole
 
-Template engine
+Build templates
 ===============
 
 *Parts of this page are converted from the wheezy.template documentation.

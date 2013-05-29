@@ -4,8 +4,8 @@ Fiole API
 .. module:: fiole
 
 
-Decorators and helpers
-----------------------
+Decorators
+----------
 
 .. autofunction:: route(url, methods=('GET', 'HEAD'), callback=None, status=200)
 .. autofunction:: get(url)
@@ -14,8 +14,11 @@ Decorators and helpers
 .. autofunction:: delete(url)
 .. autofunction:: errorhandler(code)
 
-.. autofunction:: send_file(request, filename, root=None, content_type=None, buffer_size=65536)
 
+Helpers
+-------
+
+.. autofunction:: send_file(request, filename, root=None, content_type=None, buffer_size=65536)
 .. autofunction:: get_template
 .. autofunction:: render_template
 
