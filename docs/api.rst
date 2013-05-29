@@ -28,6 +28,7 @@ Decorators and helpers
    Default :class:`Fiole` application.
 
 .. autofunction:: get_app
+.. autofunction:: run_wsgiref
 .. autofunction:: run_fiole(app=default_app, server=run_wsgiref, host=None, port=None)
 
 
@@ -38,6 +39,11 @@ WSGI application
 
    .. automethod:: push
    .. automethod:: pop
+   .. attribute:: debug
+
+      Enable debugging: don't catch internal server errors (500) and
+      unhandled exceptions.  (default: *False*)
+
    .. attribute:: secret_key
 
       Secret key used to sign secure cookies.  (default: *unset*)

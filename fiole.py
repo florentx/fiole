@@ -50,7 +50,7 @@ __all__ = ['HTTPError', 'BadRequest', 'Forbidden', 'NotFound',  # HTTP errors
            'Loader', 'Lexer', 'Parser', 'BlockBuilder', 'Engine', 'Template',
            'engine', 'get_template', 'render_template', 'send_file',
            # WSGI application and server
-           'default_app', 'get_app', 'run_fiole']
+           'default_app', 'get_app', 'run_wsgiref', 'run_fiole']
 
 
 # Exceptions
@@ -461,6 +461,7 @@ class Fiole(object):
     def __init__(self):
         self.routes = []
         self.error_handlers = {302: http_302_found}
+        self.debug = False
 
     @classmethod
     def push(cls, app=None):
@@ -488,18 +489,18 @@ class Fiole(object):
 
     def handle_error(self, exception, environ, level=0):
         """Deal with the exception and present an error page."""
+        status = getattr(exception, 'status', 500)
+        if level > 2 or self.debug and status == 500:
+            raise
         if not getattr(exception, 'hide_traceback', False):
             environ['wsgi.errors'].write("%s occurred on '%s': %s\n%s" % (
                 exception.__class__.__name__, environ['PATH_INFO'],
                 exception, traceback.format_exc()))
-        status = getattr(exception, 'status', 500)
         handler = (self.error_handlers.get(status) or
                    self.default_error_handler(status))
         try:
             return handler(exception), status
-        except Exception as exc:
-            if level > 3:
-                raise
+        except HTTPError as exc:
             return self.handle_error(exc, environ, level + 1)
 
     def find_matching_url(self, request):
@@ -1067,6 +1068,7 @@ def render_template(template_name=None, source=None, **context):
 # The WSGI HTTP server
 
 def run_wsgiref(host, port, handler):
+    """Simple HTTPServer that supports WSGI."""
     from wsgiref.simple_server import make_server
     srv = make_server(host, port, handler)
     srv.serve_forever()

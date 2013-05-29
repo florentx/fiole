@@ -24,6 +24,8 @@ Changelog
 * The ``send_file`` helper recognizes the ``If-Modified-Since`` header and
   return *304 Not Modified* appropriately.
 
+* Add ``Fiole.debug`` boolean flag to let unhandled exceptions propagate.
+
 * Rename helper ``html_escape`` to ``escape_html``.
 
 * Refactor the internals of the template engine.
