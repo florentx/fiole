@@ -75,11 +75,10 @@ class StartResponse(object):
         self.response = response
 
     def __call__(self, status, response_headers, exc_info=None):
-        rv = self.response
-        assert 'status' not in rv
+        assert 'status' not in self.response
         assert exc_info is None
-        rv['status'] = status
-        rv['headers'] = response_headers
+        self.response['status'] = status
+        self.response['headers'] = response_headers
 
 
 def handle_single_request(environ, **kw):

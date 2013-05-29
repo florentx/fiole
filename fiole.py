@@ -1080,7 +1080,7 @@ def run_fiole(app=default_app, server=run_wsgiref, host=None, port=None):
     host = host or DEFAULT_BIND['host']
     port = int(port or DEFAULT_BIND['port'])
     print('`fiole` starting up (using %s)...\nListening on http://%s:%s...\n'
-          'Use Ctrl-C to quit.\n' % (server, host, port))
+          'Use Ctrl-C to quit.\n' % (server.__name__, host, port))
 
     try:
         server(host, port, app.handle_request)
