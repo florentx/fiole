@@ -6,7 +6,7 @@ Changelog
 0.x (unreleased)
 ~~~~~~~~~~~~~~~~
 
-* Improve documentation.
+* Improve the documentation.
 
 * Add the Fiole application to the WSGI environment:
   ``environ['fiole.app']``.  (Issue #1)
@@ -22,7 +22,11 @@ Changelog
   ``get_app().secret_key = 's3c4e7k3y...'`` instead.
 
 * The ``send_file`` helper recognizes the ``If-Modified-Since`` header and
-  return *304 Not Modified* appropriately.
+  return *"304 Not Modified"* appropriately.
+
+* Patch the ``wsgiref.simple_server.ServerHandler`` to stop sending
+  ``Content-Length`` for status *"304 Not Modified"*.  `Issue 18099
+  <http://bugs.python.org/issue18099>`__
 
 * Add ``Fiole.debug`` boolean flag to let unhandled exceptions propagate.
 

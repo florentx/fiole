@@ -14,13 +14,13 @@ import os
 import re
 import sys
 import time
+import threading
 import traceback
 from datetime import datetime, timedelta
-from email.utils import formatdate, mktime_tz, parsedate_tz
+from email.utils import mktime_tz, parsedate_tz
 from functools import update_wrapper, wraps
 from mimetypes import guess_type as guess_ct
-from threading import Lock
-from wsgiref.util import FileWrapper
+from wsgiref.handlers import format_date_time, FileWrapper
 try:                  # Python 3
     from http.client import responses as HTTP_CODES
     from http.cookies import SimpleCookie
@@ -116,7 +116,7 @@ def format_timestamp(ts):
     elif isinstance(ts, (tuple, time.struct_time)):
         ts = time.mktime(ts)
     try:
-        return formatdate(ts, usegmt=True)
+        return format_date_time(ts)
     except Exception:
         raise TypeError("Unknown timestamp type: %r" % ts)
 
@@ -394,13 +394,14 @@ class Response(object):
                  content_type='text/html', wrapped=False):
         self.output, self.status, self.wrapped = output, status, wrapped
         self.headers = HTTPHeaders(headers)
-        if ';' not in content_type and (
-                content_type.startswith('text/') or
-                content_type == 'application/xml' or
-                (content_type.startswith('application/') and
-                 content_type.endswith('+xml'))):
-            content_type += '; charset=' + self.charset
-        self.headers['Content-Type'] = content_type
+        if status != 304 and 'Content-Type' not in self.headers:
+            if ';' not in content_type and (
+                    content_type.startswith('text/') or
+                    content_type == 'application/xml' or
+                    (content_type.startswith('application/') and
+                     content_type.endswith('+xml'))):
+                content_type += '; charset=' + self.charset
+            self.headers['Content-Type'] = content_type
 
     def set_cookie(self, name, value, domain=None, expires=None, path="/",
                    expires_days=None, signed=None, **kwargs):
@@ -958,7 +959,7 @@ class Engine(object):
     """Assemble the template engine."""
 
     def __init__(self, loader=None, parser=None, template_class=None):
-        self.lock = Lock()
+        self.lock = threading.Lock()
         self.templates, self.renders, self.modules = {}, {}, {}
         self.global_vars = {'_r': self.render, '_i': self.import_name}
         self.template_class = template_class or Template
@@ -1069,7 +1070,16 @@ def render_template(template_name=None, source=None, **context):
 
 def run_wsgiref(host, port, handler):
     """Simple HTTPServer that supports WSGI."""
-    from wsgiref.simple_server import make_server
+    from wsgiref.simple_server import make_server, ServerHandler
+
+    def cleanup_headers(self):
+        # work around http://bugs.python.org/issue18099
+        if self.status[:3] == "304":
+            del self.headers['Content-Length']
+        elif 'Content-Length' not in self.headers:
+            self.set_content_length()
+    ServerHandler.cleanup_headers = cleanup_headers
+
     srv = make_server(host, port, handler)
     srv.serve_forever()
 
