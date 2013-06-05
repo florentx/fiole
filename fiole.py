@@ -960,11 +960,15 @@ class Engine(object):
 
     def __init__(self, loader=None, parser=None, template_class=None):
         self.lock = threading.Lock()
-        self.templates, self.renders, self.modules = {}, {}, {}
+        self.clear()
         self.global_vars = {'_r': self.render, '_i': self.import_name}
         self.template_class = template_class or Template
         self.loader = loader or Loader()
         self.parser = parser or Parser()
+
+    def clear(self):
+        """Remove all compiled templates from the internal cache."""
+        self.templates, self.renders, self.modules = {}, {}, {}
 
     def get_template(self, name=None, **kwargs):
         """Return a compiled template."""
@@ -977,7 +981,7 @@ class Engine(object):
 
     @lock_acquire
     def remove(self, name):
-        """Remove given ``name`` from internal cache."""
+        """Remove given ``name`` from the internal cache."""
         if name in self.renders:
             del self.templates[name], self.renders[name]
         if name in self.modules:
@@ -1052,6 +1056,8 @@ engine.global_vars.update({'str': unicode, 'escape': escape_html})
 
 def get_template(name=None, source=None, require=None):
     """Return a compiled template."""
+    if get_app().debug:
+        engine.clear()
     if source is None:
         if '\n' not in name and '{{' not in name:
             return engine.get_template(name)

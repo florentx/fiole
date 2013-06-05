@@ -22,7 +22,7 @@ Changelog
   ``get_app().secret_key = 's3c4e7k3y...'`` instead.
 
 * The ``send_file`` helper recognizes the ``If-Modified-Since`` header and
-  return *"304 Not Modified"* appropriately.
+  returns *"304 Not Modified"* appropriately.
 
 * Patch the ``wsgiref.simple_server.ServerHandler`` to stop sending
   ``Content-Length`` for status *"304 Not Modified"*.  `Issue 18099
@@ -32,7 +32,8 @@ Changelog
 
 * Rename helper ``html_escape`` to ``escape_html``.
 
-* Refactor the internals of the template engine.
+* Refactor the internals of the template engine.  New method
+  ``Engine.clear()`` to reset the cache of byte-compiled templates.
 
 
 0.2 (2013-05-22)

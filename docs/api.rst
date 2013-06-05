@@ -181,6 +181,7 @@ Template engine
       Any object can be added in this registry for usage in the templates,
       either as function or filter.
 
+   .. automethod:: clear
    .. automethod:: get_template
    .. automethod:: remove(name)
    .. automethod:: import_name
