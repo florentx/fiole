@@ -11,6 +11,10 @@ Changelog
 * Add the Fiole application to the WSGI environment:
   ``environ['fiole.app']``.  (Issue #1)
 
+* Implement parsing of the ``Accept`` headers, and add them as dynamic
+  properties of ``Request``: ``accept``, ``accept_charset``,
+  ``accept_encoding`` and ``accept_language``.  (Issue #2)
+
 * Replace the global ``SECRET_KEY`` with a new attribute of
   the Fiole application ``app.secret_key``.
 

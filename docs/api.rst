@@ -97,6 +97,26 @@ WSGI application
 
       Header ``"Content-Length"`` of the request as integer or ``0``.
 
+   .. attribute:: accept
+
+      Header ``"Accept"`` of the request.
+      Return an :class:`Accept` instance.
+
+   .. attribute:: accept_charset
+
+      Header ``"Accept-Charset"`` of the request.
+      Return an :class:`Accept` instance.
+
+   .. attribute:: accept_encoding
+
+      Header ``"Accept-Encoding"`` of the request.
+      Return an :class:`Accept` instance.
+
+   .. attribute:: accept_language
+
+      Header ``"Accept-Language"`` of the reques.
+      Return an :class:`Accept` instance.
+
    .. autoattribute:: GET
    .. autoattribute:: POST
    .. autoattribute:: PUT
@@ -156,6 +176,12 @@ WSGI application
    .. automethod:: keys
    .. automethod:: values
    .. automethod:: items
+
+.. autoclass:: Accept
+
+   .. automethod:: __contains__
+   .. automethod:: quality
+   .. automethod:: best_match
 
 .. autoexception:: HTTPError
 .. autoexception:: BadRequest

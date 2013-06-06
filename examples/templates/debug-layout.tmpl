@@ -8,6 +8,21 @@
 %enddef
 {{ content() }}\
     <hr>
+    <pre>[request]
+content_length: {{ request.content_length|s|e }}
+accept: {{ request.accept._parsed|s|e }}
+accept_charset: {{ request.accept_charset|list|s|e }}
+accept_encoding: {{ request.accept_encoding|list|s|e }}
+accept_language: {{ request.accept_language._parsed|s|e }}
+
+accept.quality('application/json'): {{ request.accept.quality('application/json')|s|e }}
+accept.quality('text/html'): {{ request.accept.quality('text/html')|s|e }}
+accept.best_match(['application/json', ('text/html', .8)]):\
+ {{ request.accept.best_match(['application/json', ('text/html', .8)])|s|e }}
+accept.best_match(['application/json', ('text/html', .77)]):\
+ {{ request.accept.best_match(['application/json', ('text/html', .77)])|s|e }}
+</pre>
+    <hr>
     <pre>[request.GET]
 {{ request.GET|pretty|e }}</pre>
     <hr>

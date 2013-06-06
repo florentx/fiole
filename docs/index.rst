@@ -44,6 +44,7 @@ The following projects were also a great source of ideas:
 
 * `Werkzeug <http://werkzeug.pocoo.org/>`_ (``HTTPHeaders`` and
   ``EnvironHeaders`` datastructures)
+* `WebOb <http://docs.webob.org/>`_ (parsing the ``Accept`` headers)
 * `Bottle <http://bottlepy.org/>`_ (embedding a simple template engine)
 * `Jinja2 <http://jinja.pocoo.org/>`_ and `Mako
   <http://www.makotemplates.org/>`_ (common template engine syntax and

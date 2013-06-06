@@ -43,14 +43,15 @@ __version__ = '0.3.dev0'
 __all__ = ['HTTPError', 'BadRequest', 'Forbidden', 'NotFound',  # HTTP errors
            'MethodNotAllowed', 'InternalServerError', 'Redirect',
            # Base classes
-           'HTTPHeaders', 'EnvironHeaders', 'Request', 'Response', 'Fiole',
+           'Accept', 'HTTPHeaders', 'EnvironHeaders', 'Request', 'Response',
            # Decorators
            'route', 'get', 'post', 'put', 'delete', 'errorhandler',
            # Template engine and static file helper
            'Loader', 'Lexer', 'Parser', 'BlockBuilder', 'Engine', 'Template',
            'engine', 'get_template', 'render_template', 'send_file',
            # WSGI application and server
-           'default_app', 'get_app', 'run_wsgiref', 'run_fiole']
+           'Fiole', 'default_app', 'get_app', 'run_wsgiref', 'run_fiole']
+_accept_re = re.compile(r'(?:^|,)\s*([^\s;,]+)(?:[^,]*?;\s*q=([\d.]*))?')
 
 
 # Exceptions
@@ -187,6 +188,89 @@ def lock_acquire(f):
     return wrapper
 
 
+class Accept(object):
+    """Represent an ``Accept``-style header."""
+
+    def __init__(self, header_name, value):
+        accept_all = (not value and header_name != 'Accept-Encoding')
+        self._parsed = list(self.parse(value)) if value else []
+        self._masks = [('*', 1)] if accept_all else self._parsed
+        if header_name == 'Accept-Language':
+            self._match = self._match_language
+
+    @staticmethod
+    def parse(value):
+        """Parse ``Accept``-style header."""
+        for match in _accept_re.finditer(value):
+            (name, quality) = match.groups()
+            if name != 'q':
+                try:
+                    quality = float(quality or 1.)
+                    if quality:
+                        yield (name.lower(), min(1, quality))
+                except ValueError:
+                    yield (name.lower(), 1)
+
+    def __bool__(self):
+        return bool(self._parsed)
+    __nonzero__ = __bool__
+
+    def __iter__(self):
+        for (mask, q) in sorted(self._parsed, key=lambda m: -m[1]):
+            yield mask
+
+    def __contains__(self, offer):
+        """Return True if the given offer is listed in the accepted types."""
+        assert '*' not in offer
+        for (mask, q) in self._masks:
+            if self._match(mask, offer):
+                return True
+
+    def quality(self, offer):
+        """Return the quality of the given offer."""
+        assert '*' not in offer
+        bestq = 0
+        for (mask, q) in self._parsed:
+            if bestq < q and self._match(mask, offer):
+                bestq = q
+        return bestq or None
+
+    def best_match(self, offers, default_match=None):
+        """Return the best match in the sequence of offered types."""
+        best_offer = (default_match, -1, '*')
+        for offer in offers:
+            server_quality = 1
+            if isinstance(offer, (tuple, list)):
+                (offer, server_quality) = offer
+            assert '*' not in offer
+            for (mask, q) in self._masks:
+                possible_quality = server_quality * q
+                if (possible_quality > best_offer[1] or
+                    (possible_quality == best_offer[1] and
+                     mask.count('*') < best_offer[2].count('*')
+                     )) and self._match(mask, offer):
+                    best_offer = (offer, possible_quality, mask)
+        return best_offer[0]
+
+    @staticmethod
+    def _match(mask, offer):
+        if mask.endswith('/*'):
+            (mask, offer) = (mask[:-2], offer.split('/')[0])
+        return (mask == '*' or mask == offer.lower())
+
+    @staticmethod
+    def _match_language(mask, offer):
+        offer = offer.replace('_', '-').lower()
+        return (mask == '*' or mask == offer or
+                offer.startswith(mask + '-') or mask.startswith(offer + '-'))
+
+    @classmethod
+    def header(cls, header):
+        def fget(request):
+            return cls(header, request.headers[header])
+        return lazyproperty(fget)
+
+
 class HTTPHeaders(object):
     """An object that stores some headers."""
 
@@ -317,6 +401,10 @@ class Request(object):
             self.content_length = int(self.headers['Content-Length'] or 0)
         except ValueError:
             self.content_length = 0
+    accept = Accept.header('Accept')
+    accept_charset = Accept.header('Accept-Charset')
+    accept_encoding = Accept.header('Accept-Encoding')
+    accept_language = Accept.header('Accept-Language')
 
     def __getattr__(self, name):
         """Access the environment."""
