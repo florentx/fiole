@@ -37,9 +37,9 @@ class TemplateHelperTestCase(unittest.TestCase):
         self.assertEqual(template.render(ctx, dummy=42), result)
         self.assertEqual(template.render({}, **ctx), result)
         self.assertEqual(template.render(dummy=42, **ctx), result)
+        self.assertEqual(template.render(username=42), 'Welcome, 42!')
 
         self.assertRaises(TypeError, template.render, 'John')
-        self.assertRaises(TypeError, template.render, username=42)
         self.assertRaises(KeyError, template.render)
         self.assertRaises(KeyError, template.render, dummy='42')
         self.assertRaises(KeyError, template.render, {'abc': 'abc'})
@@ -64,9 +64,9 @@ class TemplateHelperTestCase(unittest.TestCase):
         self.assertEqual(template.render(ctx, dummy=42), result)
         self.assertEqual(template.render({}, **ctx), result)
         self.assertEqual(template.render(dummy=42, **ctx), result)
+        self.assertEqual(template.render(username=42), 'Welcome, 42!')
 
         self.assertRaises(TypeError, template.render, 'John')
-        self.assertRaises(TypeError, template.render, username=42)
         self.assertRaises(KeyError, template.render)
         self.assertRaises(KeyError, template.render, dummy='42')
         self.assertRaises(KeyError, template.render, {'abc': 'abc'})

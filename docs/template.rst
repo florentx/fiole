@@ -20,9 +20,7 @@ It retains the same design goals:
 In a nutshell, the syntax looks as simple as `Bottle SimpleTemplate`_:
 
 * ``{{ ... }}`` executes the enclosed :ref:`expression<template_expressions>`
-  and inserts the result.  The expression must return a Unicode or
-  ASCII string.
-* Use the ``|s`` filter to cast random Python objects to Unicode.
+  and inserts the result.
 * Use the ``|e`` filter to convert any of ``& < > " '`` to HTML-safe
   sequences.
 * A single percent ``%`` at the beginning of the line identifies a
@@ -41,7 +39,7 @@ Simple template:
     Welcome, {{user.name}}!
     %if items:
         %for i in items:
-            {{i.name}}: {{i.price|s}}.
+            {{i.name}}: {{i.price}}.
         %endfor
     %else:
         No item found.
@@ -134,22 +132,6 @@ Variable syntax is not limited to a single name access.  You are able to use
 the full power of Python to access items in dictionary, attributes,
 function calls, etc...
 
-The expression must return a Unicode string, or use the ``|s`` filter
-when appropriate::
-
-    >>> render_template(source='# {{ a }} - {{ b }} = {{ a - b }}', a=56, b=14)
-    Traceback (most recent call last):
-      File "<stdin>", line 1, in <module>
-      File "./fiole.py", line 1076, in render_template
-        return get_template(template_name, source, context).render(context)
-      File "./fiole.py", line 1057, in render
-        return self.render_template(ctx or kwargs, {}, {})
-      File "<string>", line 3, in render
-    TypeError: sequence item 1: expected str instance, int found
-    >>> #
-    >>> render_template(source='# {{ a|s }} - {{ b|s }} = {{ a - b|s }}', a=56, b=14)
-    u'# 56 - 14 = 42'
-
 
 Filters
 ~~~~~~~
@@ -168,22 +150,10 @@ the following call:
 
     {{ filter2(filter1(variable_name)) }}
 
-Two default filters are provided:
+The built-in filter ``|e`` converts any of ``& < > " '`` to HTML-safe
+sequences ``&amp; &lt; &gt; &quot; &#x27;``.
 
-* the ``|s`` filter cast random Python objects to Unicode.
-* the ``|e`` filter convert any of ``& < > " '`` to HTML-safe sequences.
-
-
-A simple example:
-
-.. code-block:: mako
-
-    {{ user.age|s }}
-
-Assuming the age property of user is integer we apply string filter.
-
-
-You can define and use custom filters too.  Here is an example how to switch
+You can define and use custom filters.  Here is an example how to switch
 to a different implementation for the html escape filter::
 
     try:
@@ -193,7 +163,7 @@ to a different implementation for the html escape filter::
         pass
 
 It tries to import an optimized version of html escape from the `Webext`_
-package and assign it to the ``escape`` global variable, which is aliased
+package and assigns it to the ``escape`` global variable, which is aliased
 as ``e`` filter.  The built-in ``escape`` is pure Python.
 
 An example which demonstrates the standard ``|e`` filter::
@@ -372,7 +342,7 @@ Here is a simple example:
     %require(items)
     %if items:
       %for i in items:
-        {{i.name}}: {{i.price|s}}.
+        {{i.name}}: {{i.price}}.
       %endfor
     %else:
       No items found.
@@ -426,9 +396,6 @@ based on the names of the other keyword arguments passed to the function.
 
 The HTML escaping cannot be activated globally.  Each string which is
 potentially unsafe should be filtered with ``|e``.
-
-The output of inline expressions must be Unicode or ASCII only.  Use the
-filter ``|s`` to convert any object to Unicode.
 
 
 These features are not supported (among others):

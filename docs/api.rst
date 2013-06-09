@@ -202,10 +202,16 @@ Template engine
       This mapping contains additional globals which are injected in the
       generated source.  Two special globals are used internally and must
       not be modified: ``_r`` and ``_i``.  The functions ``str`` and
-      ``escape`` are also added here for the ``|s`` and ``|e`` filters.
+      ``escape`` (alias ``e``) are also added here.  They are used as filters.
       They can be replaced by C extensions for performance (see `Webext`_).
-      Any object can be added in this registry for usage in the templates,
+      Any object can be added to this registry for usage in the templates,
       either as function or filter.
+
+   .. attribute:: default_filters
+
+      The list of filters which are applied to all template expressions
+      ``{{ ... }}``.  Set to ``None`` to remove all default filters, for
+      performance.  (default: *['str']*)
 
    .. automethod:: clear
    .. automethod:: get_template

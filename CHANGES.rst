@@ -36,6 +36,11 @@ Changelog
 
 * Rename helper ``html_escape`` to ``escape_html``.
 
+* Add ``default_filters`` for the template engine configuration.
+
+* Automatically cast Python objects to Unicode for template rendering.
+  This can be disabled with ``engine.default_filters = None``.
+
 * Refactor the internals of the template engine.  New method
   ``Engine.clear()`` to reset the cache of byte-compiled templates.
 

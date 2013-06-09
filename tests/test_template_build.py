@@ -199,7 +199,7 @@ for color in colors :
 def link(url, text):
     _b = []; w = _b.append; \
 w('        <a href="'); w(url); w('">'); w(text); w('</a>\\n')
-    return ''.join(_b)
+    return "".join(_b)
 super_defs['link'] = link; link = local_defs.setdefault('link', link)
 w('    Please '); w(link('/en/signin', 'sign in')); w('.\\n')""")
 
@@ -227,7 +227,7 @@ w(title()); w('.')""")
 def link(url, text):
     _b = []; w = _b.append; \
 w('        <a href="'); w(url); w('">'); w(text); w('</a>\\n')
-    return ''.join(_b)
+    return "".join(_b)
 super_defs['link'] = link; link = local_defs.setdefault('link', link)
 w('    Please '); w(link( '/en/signin', 'sign in' )); w('.\\n')""")
 

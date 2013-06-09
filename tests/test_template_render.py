@@ -46,7 +46,7 @@ Pi = {{ '%.9f' % math.pi }}"""),
         self.assertEqual(self.render({}, """\
 %# import  this \n\
 % import  itertools
-# {{ 42 | s }} {{ locals()|sorted |s }}"""),
+# {{ 42 }} {{ locals()|sorted }}"""),
                          """\
 # 42 ['_b', 'ctx', 'itertools', 'local_defs', 'super_defs', 'w']""")
 

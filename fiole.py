@@ -107,7 +107,8 @@ def tobytes(value):
 
 def escape_html(s):
     """Escape special chars in HTML string."""
-    return cgi.escape(s).replace('"', '&quot;').replace("'", '&#x27;')
+    return (cgi.escape(s if isinstance(s, unicode) else unicode(s))
+               .replace('"', '&quot;').replace("'", '&#x27;'))
 
 
 def format_timestamp(ts):
@@ -867,14 +868,15 @@ class Parser(Lexer):
 
 class BlockBuilder(list):
 
-    filters = {'s': 'str', 'e': 'escape'}
+    filters = {'e': 'escape'}
     writer_declare = '_b = []; w = _b.append'
-    writer_return = "return ''.join(_b)"
+    writer_return = 'return "".join(_b)'
 
-    def __init__(self, indent='', lineno=0, nodes=()):
+    def __init__(self, indent='', lineno=0, nodes=(), default_filters=None):
         self.indent = indent
         self.lineno = self.offset = lineno
         self.local_vars = set()
+        self.default_filters = default_filters or []
         self.build_block(nodes)
 
     def __enter__(self):
@@ -1007,11 +1009,10 @@ class BlockBuilder(list):
             if token == 'include':
                 value = '_r(' + value + ', ctx, local_defs, super_defs)'
             elif token == 'var':
-                if '|' in value:
-                    filters = [f.strip() for f in value.split('|')]
-                    value = filters.pop(0)
-                    for f in filters:
-                        value = self.filters.get(f, f) + '(' + value + ')'
+                filters = [f.strip() for f in value.split('|')]
+                value = filters.pop(0)
+                for f in filters + self.default_filters:
+                    value = self.filters.get(f, f) + '(' + value + ')'
             elif value:
                 value = repr(value)
             if value:
@@ -1049,6 +1050,7 @@ class Engine(object):
     def __init__(self, loader=None, parser=None, template_class=None):
         self.lock = threading.Lock()
         self.clear()
+        self.default_filters = ['str']
         self.global_vars = {'_r': self.render, '_i': self.import_name}
         self.template_class = template_class or Template
         self.loader = loader or Loader()
@@ -1059,7 +1061,11 @@ class Engine(object):
         self.templates, self.renders, self.modules = {}, {}, {}
 
     def get_template(self, name=None, **kwargs):
-        """Return a compiled template."""
+        """Return a compiled template.
+
+        The optional keyword argument ``default_filters`` overrides
+        the setting which is configured on the ``Engine``.
+        """
         if name and kwargs:
             self.remove(name)
         try:
@@ -1095,10 +1101,10 @@ class Engine(object):
     def compile_template(self, name, **kwargs):
         if name in self.templates:
             return self.templates[name]
-        nodes = self.load_and_parse(name, **kwargs)
+        (nodes, filters) = self.load_and_parse(name, **kwargs)
         def_render = 'def render(ctx, local_defs, super_defs):'
         nodes = [(-1, 'compound', (def_render, [(0, 'render', list(nodes))]))]
-        source = BlockBuilder(lineno=-2, nodes=nodes)
+        source = BlockBuilder(lineno=-2, nodes=nodes, default_filters=filters)
         compiled = source.compile_code(name or '<string>')
         local_vars = {}
         exec(compiled, self.global_vars, local_vars)
@@ -1110,20 +1116,23 @@ class Engine(object):
 
     @lock_acquire
     def compile_import(self, name, **kwargs):
-        if name not in self.modules:
-            nodes = self.load_and_parse(name, **kwargs)
-            nodes = ([(-1, 'statement', 'local_defs = {}; super_defs = {}')] +
-                     [n for n in nodes if n[1] == 'def'])
-            source = BlockBuilder(lineno=-2, nodes=nodes)
-            compiled = source.compile_code(name)
-            self.modules[name] = module = imp.new_module(name)
-            module.__dict__.update(self.global_vars)
-            exec(compiled, module.__dict__)
+        if name in self.modules:
+            return self.modules[name]
+        (nodes, filters) = self.load_and_parse(name, **kwargs)
+        nodes = ([(-1, 'statement', 'local_defs = {}; super_defs = {}')] +
+                 [n for n in nodes if n[1] == 'def'])
+        source = BlockBuilder(lineno=-2, nodes=nodes, default_filters=filters)
+        compiled = source.compile_code(name)
+        self.modules[name] = module = imp.new_module(name)
+        module.__dict__.update(self.global_vars)
+        exec(compiled, module.__dict__)
 
     def load_and_parse(self, name, **kwargs):
+        filters = kwargs.pop('default_filters', self.default_filters)
         template_source = self.loader.load(name, **kwargs)
         tokens = self.parser.tokenize(template_source)
-        return self.parser.parse_iter(self.parser.end_continue(tokens))
+        nodes = self.parser.parse_iter(self.parser.end_continue(tokens))
+        return (nodes, filters)
 
 
 class Template(object):
