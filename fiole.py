@@ -922,17 +922,6 @@ class BlockBuilder(list):
 
     # all builder rules
 
-    def build_extends(self, lineno, nodes):
-        if len(nodes) not in (1, 2):    # Ignore 'require' before 'extends'
-            return
-        (lineno, token, value) = nodes[-1]
-        if token != 'extends':
-            return
-        (extends, nodes) = value
-        stmt = 'return _r(' + extends + ', ctx, local_defs, super_defs)'
-        self.build_block([n for n in nodes if n[1] in ('def', 'require')])
-        return self.add(self.lineno + 1, stmt)
-
     def build_import(self, lineno, value):
         parts = value[7:].rsplit(None, 2)
         if len(parts) == 3 and parts[1] == 'as':
@@ -950,24 +939,27 @@ class BlockBuilder(list):
             value = "%s = _i(%s).local_defs['%s']" % (alias, name, var)
         return self.add(lineno, value)
 
-    def build_render_single_markup(self, lineno, nodes):
+    def build_render(self, lineno, nodes):
         assert lineno <= 0
         if not nodes:
             return self.add(lineno, "return ''")
+        # Ignore 'require' before 'extends'
+        if len(nodes) < 3 and nodes[-1][1] == 'extends':
+            (extends, nodes) = nodes[-1][2]
+            stmt = 'return _r(' + extends + ', ctx, local_defs, super_defs)'
+            self.build_block([n for n in nodes if n[1] in ('def', 'require')])
+            return self.add(self.lineno + 1, stmt)
         if len(nodes) == 1:
-            (ln, token, nodes) = nodes[0]
-            if token == 'out' and len(nodes) == 1:
-                (ln, token, value) = nodes[0]
+            (ln, token, subnodes) = nodes[0]
+            if token == 'out' and len(subnodes) == 1:
+                (ln, token, value) = subnodes[0]
                 if token == 'markup':
                     return self.add(ln, "return %r" % value)
-
-    def build_render(self, lineno, nodes):
-        assert lineno <= 0
         self.add(lineno, self.writer_declare)
         self.build_block(nodes)
         return self.add(self.lineno + 1, self.writer_return)
 
-    def build_def_single_markup(self, lineno, value):
+    def build_def(self, lineno, value):
         (stmt, nodes) = value
         (ln, token, subnodes) = nodes[0]
         if token in COMPOUND_TOKENS:
@@ -976,26 +968,22 @@ class BlockBuilder(list):
                      "    %%#ignore\n    %%%s ..." % (token, stmt, token))
             with self.add(lineno, stmt):
                 return self.add(ln, 'raise SyntaxError(%r)' % error)
-        if len(nodes) > 2:
-            return
-        (ln, value) = (lineno, '')
-        if len(nodes) == 2:
-            if token != 'out' or len(subnodes) > 1:
-                return
-            (ln, token, value) = subnodes[0]
-            if token != 'markup':
-                return
+        single_markup = None
+        if len(nodes) == 1:
+            (ln, single_markup) = (lineno, '')
+        elif len(nodes) == 2:
+            if token == 'out' and len(subnodes) == 1:
+                (ln, token, value) = subnodes[0]
+                if token == 'markup':
+                    single_markup = value
         with self.add(lineno, stmt):
-            self.add(ln, "return " + repr(value))
-        return self.add(ln + 1, setdefs('?', stmt[4:stmt.index('(', 5)]))
-
-    def build_def(self, lineno, value):
-        (stmt, nodes) = value
-        with self.add(lineno, stmt):
-            self.add(lineno + 1, self.writer_declare)
-            self.build_block(nodes)
-            ln = self.lineno
-            self.add(ln, self.writer_return)
+            if single_markup is None:
+                self.add(lineno + 1, self.writer_declare)
+                self.build_block(nodes)
+                ln = self.lineno
+                self.add(ln, self.writer_return)
+            else:
+                self.add(ln, "return " + repr(single_markup))
         return self.add(ln + 1, setdefs('?', stmt[4:stmt.index('(', 5)]))
 
     def build_out(self, lineno, nodes):
@@ -1018,7 +1006,7 @@ class BlockBuilder(list):
             return self.build_block(nodes)
 
     def build_require(self, lineno, values):
-        stmt = '; '.join([v + " = ctx['" + v + "']"
+        stmt = "; ".join([v + " = ctx['" + v + "']"
                           for v in values if v not in self.local_vars])
         self.local_vars.update(values)
         return self.add(lineno, stmt)
@@ -1027,13 +1015,8 @@ class BlockBuilder(list):
         if self.lineno != lineno:
             self.add(lineno - 1, '')
 
-    rules = {
-        'render': [build_extends, build_render_single_markup, build_render],
-        'def': [build_def_single_markup, build_def],
-        'statement': [add],
-        '#': [],
-    }
-    for name in ('import', 'from', 'require', 'out', 'compound', 'end'):
+    rules = {'statement': [add], '#': []}
+    for name in 'import from render require out compound def end'.split():
         rules[name] = [locals()['build_' + name]]
 
 
