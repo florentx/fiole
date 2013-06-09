@@ -1117,7 +1117,7 @@ class Engine(object):
     @lock_acquire
     def compile_import(self, name, **kwargs):
         if name in self.modules:
-            return self.modules[name]
+            return
         (nodes, filters) = self.load_and_parse(name, **kwargs)
         nodes = ([(-1, 'statement', 'local_defs = {}; super_defs = {}')] +
                  [n for n in nodes if n[1] == 'def'])
