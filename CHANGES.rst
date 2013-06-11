@@ -29,8 +29,8 @@ Changelog
   returns *"304 Not Modified"* appropriately.
 
 * Patch the ``wsgiref.simple_server.ServerHandler`` to stop sending
-  ``Content-Length`` for status *"304 Not Modified"*.  `Issue 18099
-  <http://bugs.python.org/issue18099>`__
+  ``Content-Length`` for status *"304 Not Modified"*.  (This is related to
+  `a Python bug <http://bugs.python.org/issue18099>`__)
 
 * Add ``Fiole.debug`` boolean flag to let unhandled exceptions propagate.
 
