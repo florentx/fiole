@@ -75,6 +75,8 @@ Example::
         raise NotFound("This action is not supported")
 
 
+.. _hooks:
+
 Hooks
 -----
 

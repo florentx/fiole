@@ -55,6 +55,10 @@ WSGI application
 
       Directory where static files are located.  (default: *./static*)
 
+   .. attribute:: hooks
+
+      List of :ref:`hooks` which are registered for this application.
+
    .. automethod:: handle_request
    .. automethod:: handle_error
    .. automethod:: find_matching_url

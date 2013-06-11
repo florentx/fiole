@@ -44,6 +44,8 @@ Changelog
 * Refactor the internals of the template engine.  New method
   ``Engine.clear()`` to reset the cache of byte-compiled templates.
 
+* Support extensibility of the WSGI application with hooks.
+
 
 0.2 (2013-05-22)
 ~~~~~~~~~~~~~~~~
