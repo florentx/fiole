@@ -38,7 +38,7 @@ So, how ``Fiole`` is different or similar to the others?
   a syntax close to Bottle's `SimpleTemplate`_.  When it comes to the
   differences, ``Fiole`` template engine is faster, and its source code is
   smaller and follows the PEP 8 guidelines.  On the other side
-  ``Bottle`` has more features and it supports plugins.
+  ``Bottle`` has more features.
 
 * `Flask`_ is the successor of `Denied`_, born on 1st April 2010.  It is
   a great framework with `a must-read documentation`_.  ``Flask`` is a
@@ -55,14 +55,13 @@ To sum up:
   and ``Flask``
 * ``Fiole`` supports signed cookies like ``Flask`` does
 * ``Fiole`` source code is PEP8-compliant like ``itty.py`` and ``Flask``
-* ``Fiole`` supports Python 3 like ``Bottle``
+* ``Fiole`` supports Python 3 like ``Bottle`` and ``Flask``
+* ``Fiole`` supports hooks like ``Bottle`` and ``Flask``
 
 * ``Fiole`` *does not* have an extensive documentation like ``Flask``
   or ``Bottle``
 * ``Fiole`` *does not* provide built-in adapters for every WSGI server
   like ``itty.py`` or ``Bottle``
-* ``Fiole`` *does not* provide a plugin mechanism like ``Flask``
-  or ``Bottle``
 
 Of course the above comparison is partial and subjective.
 
@@ -84,8 +83,8 @@ How much is it extensible?
 ``Fiole`` is thread-safe and you can configure more than one application (for
 complex projects).
 
-``Fiole`` does not provide a built-in facility to install plugins.
-However, the components of ``Fiole`` are thought to allow some extensibility.
+``Fiole`` supports hooks which can be registered for each application.
+Moreover, the components of ``Fiole`` are well thought to allow extensibility.
 For example the template engine is configurable through attributes, and all
 the components of the template engine can be subclassed easily.
 
