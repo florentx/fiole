@@ -571,7 +571,6 @@ class Fiole(object):
 
     def handle_request(self, environ, start_response):
         """The main handler.  Dispatch to the user's code."""
-        import sys
         environ['fiole.app'] = self
         request = Request(environ)
         hooks = [hdl(request) for hdl in self.hooks]
