@@ -114,7 +114,7 @@ WSGI application
 
    .. attribute:: accept_language
 
-      Header ``"Accept-Language"`` of the reques.
+      Header ``"Accept-Language"`` of the request.
       Return an :class:`Accept` instance.
 
    .. autoattribute:: GET
