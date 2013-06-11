@@ -9,7 +9,6 @@ import base64
 import cgi
 import hashlib
 import hmac
-import imp
 import os
 import re
 import sys
@@ -52,6 +51,7 @@ __all__ = ['HTTPError', 'BadRequest', 'Forbidden', 'NotFound',  # HTTP errors
            # WSGI application and server
            'Fiole', 'default_app', 'get_app', 'run_wsgiref', 'run_fiole']
 _accept_re = re.compile(r'(?:^|,)\s*([^\s;,]+)(?:[^,]*?;\s*q=([\d.]*))?')
+_new_module = type(re)
 
 
 # Exceptions
@@ -1027,10 +1027,12 @@ class Engine(object):
         self.lock = threading.Lock()
         self.clear()
         self.default_filters = ['str']
-        self.global_vars = {'_r': self.render, '_i': self.import_name}
+        self.global_vars = {'_r': self.render, '_i': self.import_name,
+                            'str': unicode, 'escape': escape_html}
         self.template_class = template_class or Template
         self.loader = loader or Loader()
         self.parser = parser or Parser()
+        self.build = BlockBuilder
 
     def clear(self):
         """Remove all compiled templates from the internal cache."""
@@ -1080,7 +1082,7 @@ class Engine(object):
         (nodes, filters) = self.load_and_parse(name, **kwargs)
         def_render = 'def render(ctx, local_defs, super_defs):'
         nodes = [(-1, 'compound', (def_render, [(0, 'render', list(nodes))]))]
-        source = BlockBuilder(lineno=-2, nodes=nodes, default_filters=filters)
+        source = self.build(lineno=-2, nodes=nodes, default_filters=filters)
         compiled = source.compile_code(name or '<string>')
         local_vars = {}
         exec(compiled, self.global_vars, local_vars)
@@ -1097,9 +1099,9 @@ class Engine(object):
         (nodes, filters) = self.load_and_parse(name, **kwargs)
         nodes = ([(-1, 'statement', 'local_defs = {}; super_defs = {}')] +
                  [n for n in nodes if n[1] == 'def'])
-        source = BlockBuilder(lineno=-2, nodes=nodes, default_filters=filters)
+        source = self.build(lineno=-2, nodes=nodes, default_filters=filters)
         compiled = source.compile_code(name)
-        self.modules[name] = module = imp.new_module(name)
+        self.modules[name] = module = _new_module(name)
         module.__dict__.update(self.global_vars)
         exec(compiled, module.__dict__)
 
@@ -1124,7 +1126,6 @@ class Template(object):
         return self.render_template(ctx or kwargs, {}, {})
 
 engine = Engine()
-engine.global_vars.update({'str': unicode, 'escape': escape_html})
 
 
 def get_template(name=None, source=None, require=None):
