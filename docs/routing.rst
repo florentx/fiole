@@ -75,6 +75,45 @@ Example::
         raise NotFound("This action is not supported")
 
 
+Hooks
+-----
+
+There's a flexible way to define extensions for ``Fiole``: you can register
+hooks which will be executed for each request.  For example you can setup
+a database connection before each request, and release the connection after
+the request.
+
+A dumb no-op hook looks like::
+
+    app = get_app()
+
+    @app.hooks.append
+    def noop_hook(request):
+        # acquire the resource
+        # ...
+        try:
+            # pre-process the Request
+            # ...
+            response = yield
+            # post-process the Response
+            # ...
+            yield response
+        finally:
+            # release the resource
+            pass
+
+This example setup a database connection::
+
+    @app.hooks.append
+    def hook_db(request):
+        request.db = connect_db()
+        try:
+            # forward the response unchanged
+            yield (yield)
+        finally:
+            request.db.close()
+
+
 .. _helpers:
 
 Helpers

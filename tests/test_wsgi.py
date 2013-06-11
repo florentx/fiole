@@ -25,6 +25,30 @@ class FioleTestCase(unittest.TestCase):
         self.assertFalse(response['errors'], msg=response['errors'])
         self.assertEqual(response['status'], '200 OK')
 
+    def install_dummy_hook(self):
+        app_hooks = fiole.get_app().hooks
+
+        captured = []
+
+        @app_hooks.append
+        def dummy_hook(request):
+            request.dummy = body = captured
+            body.append('acquire resource')
+            try:
+                body.append('pre-process request')
+                response = yield
+                body.append('post-process response')
+                body.append('response = %s' % response.output)
+                response.output = '\n'.join(body)
+                yield response
+                body.append('not executed')
+            finally:
+                # release resource
+                body.append('release resource')
+                del body, request.dummy
+
+        return captured
+
     def test_simple(self):
         @fiole.get('/')
         def index(request):
@@ -465,3 +489,50 @@ class FioleTestCase(unittest.TestCase):
                                         'Last-Modified'])
         self.assertEqual(int(hdrs['Content-Length']),
                          os.path.getsize(fiole.__file__))
+
+    def test_hook(self):
+        captured = self.install_dummy_hook()
+        body = ("acquire resource\npre-process request\n"
+                "post-process response\nresponse = %s")
+
+        @fiole.get('/')
+        def index(request):
+            return 'Hi!'
+
+        rv = handle_single_request('GET /')
+        self.assertNoError(rv)
+        self.assertEqual(rv['data'], [b(body % 'Hi!')])
+        self.assertEqual(rv['status'], '200 OK')
+        self.assertEqual(captured, ['acquire resource',
+                                    'pre-process request',
+                                    'post-process response',
+                                    'response = Hi!',
+                                    'release resource'])
+        del captured[:]
+
+        rv = handle_single_request('GET /test_missing')
+        self.assertEqual(rv['data'], [b(body % 'Not Found')])
+        self.assertEqual(rv['status'], '404 Not Found')
+        self.assertEqual(captured, ['acquire resource',
+                                    'pre-process request',
+                                    'post-process response',
+                                    'response = Not Found',
+                                    'release resource'])
+        del captured[:]
+
+    def test_hook_broken(self):
+        captured = self.install_dummy_hook()
+
+        @fiole.errorhandler(500)
+        def broken_handler(request, age_du_capitaine):
+            pass
+
+        @fiole.get('/test_broken')
+        def broken_route(request):
+            return 42 / 0
+
+        self.assertRaises(TypeError, handle_single_request, 'GET /test_broken')
+        self.assertEqual(captured, ['acquire resource',
+                                    'pre-process request',
+                                    'release resource'])
+        del captured[:]

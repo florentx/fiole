@@ -550,6 +550,7 @@ class Fiole(object):
 
     def __init__(self):
         self.routes = []
+        self.hooks = []
         self.error_handlers = {302: http_302_found}
         self.debug = False
 
@@ -566,16 +567,26 @@ class Fiole(object):
 
     def handle_request(self, environ, start_response):
         """The main handler.  Dispatch to the user's code."""
+        import sys
+        environ['fiole.app'] = self
+        request = Request(environ)
+        hooks = [hdl(request) for hdl in self.hooks]
         try:
-            environ['fiole.app'] = self
-            request = Request(environ)
-            (callback, kwargs, status) = self.find_matching_url(request)
-            response = callback(request, **kwargs)
-        except Exception as exc:
-            (response, status) = self.handle_error(exc, environ)
-        if not isinstance(response, Response):
-            response = Response(response, status=status)
-        return response.send(environ, start_response)
+            try:
+                for hook in hooks:
+                    hook.send(None)                 # Pre-process the Request
+                (callback, kwargs, status) = self.find_matching_url(request)
+                response = callback(request, **kwargs)
+            except Exception as exc:
+                (response, status) = self.handle_error(exc, environ)
+            if not isinstance(response, Response):
+                response = Response(response, status=status)
+            for hook in reversed(hooks):
+                response = hook.send(response)      # Post-process the Response
+            return response.send(environ, start_response)
+        finally:
+            for hook in reversed(hooks):
+                hook.close()                        # Clean up
 
     def handle_error(self, exception, environ, level=0):
         """Deal with the exception and present an error page."""
