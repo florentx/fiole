@@ -540,7 +540,11 @@ class Response(object):
                         app.encode_signed(cookie.key, cookie._signed))
                 self.headers.add("Set-Cookie", cookie.OutputString(None))
         start_response(status, self.headers.to_list())
-        return body if environ['REQUEST_METHOD'] != 'HEAD' else []
+        if environ['REQUEST_METHOD'] != 'HEAD':
+            return body
+        if hasattr(body, 'close'):
+            body.close()
+        return []
 
 
 class Fiole(object):
