@@ -9,18 +9,18 @@
 {{ content() }}\
     <hr>
     <pre>[request]
-content_length: {{ request.content_length|s|e }}
-accept: {{ request.accept._parsed|s|e }}
-accept_charset: {{ request.accept_charset|list|s|e }}
-accept_encoding: {{ request.accept_encoding|list|s|e }}
-accept_language: {{ request.accept_language._parsed|s|e }}
+content_length: {{ request.content_length|e }}
+accept: {{ request.accept._parsed|e }}
+accept_charset: {{ request.accept_charset|list|e }}
+accept_encoding: {{ request.accept_encoding|list|e }}
+accept_language: {{ request.accept_language._parsed|e }}
 
-accept.quality('application/json'): {{ request.accept.quality('application/json')|s|e }}
-accept.quality('text/html'): {{ request.accept.quality('text/html')|s|e }}
+accept.quality('application/json'): {{ request.accept.quality('application/json')|e }}
+accept.quality('text/html'): {{ request.accept.quality('text/html')|e }}
 accept.best_match(['application/json', ('text/html', .8)]):\
- {{ request.accept.best_match(['application/json', ('text/html', .8)])|s|e }}
+ {{ request.accept.best_match(['application/json', ('text/html', .8)])|e }}
 accept.best_match(['application/json', ('text/html', .77)]):\
- {{ request.accept.best_match(['application/json', ('text/html', .77)])|s|e }}
+ {{ request.accept.best_match(['application/json', ('text/html', .77)])|e }}
 </pre>
     <hr>
     <pre>[request.GET]
@@ -30,7 +30,7 @@ accept.best_match(['application/json', ('text/html', .77)]):\
 {{ request.POST|pretty|e }}</pre>
     <hr>
     <pre>[request.headers]
-{{ request.headers|s|e }}</pre>
+{{ request.headers|e }}</pre>
     <hr>
     <pre>[request.environ]
 {{ request.environ|pretty|e }}</pre>
