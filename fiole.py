@@ -413,7 +413,7 @@ class Request(object):
             return self.environ[name]
         except KeyError:
             raise AttributeError("type object %r has no attribute %r" %
-                                 self.__class__.__name__, name)
+                                 (self.__class__.__name__, name))
 
     @lazyproperty
     def GET(self):
