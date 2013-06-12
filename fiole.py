@@ -770,12 +770,12 @@ class Loader(object):
     def load(self, name, source=None):
         """Return template by name."""
         if source is not None:
-            return unicode(source)
+            return (name, unicode(source))
         if name in self.templates:
-            return self.templates[name]
+            return (name, self.templates[name])
         path = os.path.join(_get_root_folder(), self.template_folder, name)
         with open(path, 'rb') as f:
-            return f.read().decode('utf-8')
+            return (path, f.read().decode('utf-8'))
 
 
 class Lexer(object):
@@ -1093,11 +1093,11 @@ class Engine(object):
     def compile_template(self, name, **kwargs):
         if name in self.templates:
             return self.templates[name]
-        (nodes, filters) = self.load_and_parse(name, **kwargs)
+        (path, nodes, filters) = self.load_and_parse(name, **kwargs)
         def_render = 'def render(ctx, local_defs, super_defs):'
         nodes = [(-1, 'compound', (def_render, [(0, 'render', list(nodes))]))]
         source = self.build(lineno=-2, nodes=nodes, default_filters=filters)
-        compiled = source.compile_code(name or '<string>')
+        compiled = source.compile_code(path or '<string>')
         local_vars = {}
         exec(compiled, self.global_vars, local_vars)
         template = self.template_class(name, local_vars['render'])
@@ -1110,21 +1110,21 @@ class Engine(object):
     def compile_import(self, name, **kwargs):
         if name in self.modules:
             return
-        (nodes, filters) = self.load_and_parse(name, **kwargs)
+        (path, nodes, filters) = self.load_and_parse(name, **kwargs)
         nodes = ([(-1, 'statement', 'local_defs = {}; super_defs = {}')] +
                  [n for n in nodes if n[1] == 'def'])
         source = self.build(lineno=-2, nodes=nodes, default_filters=filters)
-        compiled = source.compile_code(name)
+        compiled = source.compile_code(path)
         self.modules[name] = module = _new_module(name)
         module.__dict__.update(self.global_vars)
         exec(compiled, module.__dict__)
 
     def load_and_parse(self, name, **kwargs):
         filters = kwargs.pop('default_filters', self.default_filters)
-        template_source = self.loader.load(name, **kwargs)
+        (path, template_source) = self.loader.load(name, **kwargs)
         tokens = self.parser.tokenize(template_source)
         nodes = self.parser.parse_iter(self.parser.end_continue(tokens))
-        return (nodes, filters)
+        return (path, nodes, filters)
 
 
 class Template(object):
