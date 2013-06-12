@@ -3,7 +3,8 @@ Changelog
 
 .. currentmodule:: fiole
 
-0.x (unreleased)
+
+0.3 (2013-06-12)
 ~~~~~~~~~~~~~~~~
 
 * Improve the documentation.
