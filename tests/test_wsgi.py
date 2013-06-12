@@ -278,6 +278,9 @@ class FioleTestCase(unittest.TestCase):
         self.assertEqual(request.POST['files'].type, 'text/plain')
         self.assertEqual(request.POST['files'].disposition, 'form-data')
 
+        self.assertFalse(hasattr(request, 'db'))
+        self.assertRaises(AttributeError, getattr, request, 'db')
+
     def test_form_data_2(self):
         environ = dict(ENVIRON)
         environ.update({

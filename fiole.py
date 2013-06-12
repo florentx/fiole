@@ -409,7 +409,11 @@ class Request(object):
 
     def __getattr__(self, name):
         """Access the environment."""
-        return self.environ[name]
+        try:
+            return self.environ[name]
+        except KeyError:
+            raise AttributeError("type object %r has no attribute %r" %
+                                 self.__class__.__name__, name)
 
     @lazyproperty
     def GET(self):
