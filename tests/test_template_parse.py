@@ -22,7 +22,7 @@ class LoaderTestCase(unittest.TestCase):
 
     def test_load_existing(self):
         """Tests load."""
-        self.assertEqual(self.loader.load('tmpl1.html'), 'x')
+        self.assertEqual(self.loader.load('tmpl1.html'), ('tmpl1.html', 'x'))
 
     def test_load_not_found(self):
         """Tests load if the name is not found."""
