@@ -105,6 +105,7 @@ class FioleTestCase(unittest.TestCase):
             self.assertEqual(request.GET, {'k': 'baz'})
             self.assertEqual(request.POST, {})
             self.assertEqual(request.PUT, request.POST)
+            self.assertEqual(request.script_name, '')
             self.assertEqual(request.body, b(''))
             self.assertEqual(request.content_length, 0)
             self.assertEqual(request.cookies, {})
