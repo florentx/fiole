@@ -93,6 +93,10 @@ WSGI application
 
       Read ``QUERY_STRING`` from the environment.
 
+   .. attribute:: base_url
+
+      Build URL without query string, with trailing ``/``.
+
    .. attribute:: headers
 
       An instance of :class:`EnvironHeaders` which wraps HTTP headers.

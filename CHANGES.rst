@@ -4,6 +4,12 @@ Changelog
 .. currentmodule:: fiole
 
 
+0.4 (unreleased)
+~~~~~~~~~~~~~~~~
+
+* Add ``Request.base_url``.  (Issue #4)
+
+
 0.3 (2013-06-12)
 ~~~~~~~~~~~~~~~~
 

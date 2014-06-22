@@ -38,7 +38,7 @@ except ImportError:   # Python 2
 DEFAULT_BIND = {'host': '127.0.0.1', 'port': 8080}
 MAIN_MODULE = '__main__'
 
-__version__ = '0.3'
+__version__ = '0.4.dev0'
 __all__ = ['HTTPError', 'BadRequest', 'Forbidden', 'NotFound',  # HTTP errors
            'MethodNotAllowed', 'InternalServerError', 'Redirect',
            # Base classes
@@ -425,6 +425,20 @@ class Request(object):
         """A dictionary of POST (or PUT) values, including files."""
         return self.build_complex_dict()
     PUT = POST
+
+    @lazyproperty
+    def base_url(self):
+        """Build URL without query string, with trailing /."""
+        scheme = self.environ['wsgi.url_scheme']
+        if 'HTTP_HOST' in self.environ:
+            host = scheme + '://' + self.environ['HTTP_HOST']
+        else:
+            host = scheme + '://' + self.environ['SERVER_NAME']
+            port = self.environ['SERVER_PORT']
+            if (scheme, port) not in (('https', '443'), ('http', '80')):
+                host += ':' + port
+        script_name = self.environ.get('SCRIPT_NAME', '').rstrip('/')
+        return host + script_name + self.path
 
     @lazyproperty
     def body(self):
