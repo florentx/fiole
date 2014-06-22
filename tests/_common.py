@@ -11,6 +11,9 @@ ENVIRON = {
     'CONTENT_TYPE': 'text/plain',
     'CONTENT_LENGTH': '',
     'HTTP_COOKIE': '',
+    'SERVER_NAME': 'fakehost.invalid',
+    'SERVER_PORT': '443',
+    'wsgi.url_scheme': 'https',
 }
 
 # Samples from:
@@ -57,6 +60,11 @@ basestring = str if PY3 else basestring
 native = str if not PY3 else lambda s: s.decode('latin-1')
 
 
+class FakeFile(list):
+    def read(self, size):
+        return (self.pop(0) if self else '').encode('utf-8')
+
+
 class WSGIErrors(object):
     __slots__ = ('response',)
 
@@ -98,6 +106,7 @@ def handle_single_request(environ, **kw):
     if kw:
         environ.update(kw)
     environ['wsgi.errors'] = WSGIErrors(rv)
+    environ['wsgi.input'] = FakeFile()
     start_response = StartResponse(rv)
     rv['data'] = fiole.get_app().handle_request(environ, start_response)
     assert 'status' in rv

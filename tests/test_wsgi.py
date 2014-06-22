@@ -14,6 +14,7 @@ b = (lambda s: s.encode('utf-8')) if PY3 else (lambda s: s)
 
 
 class FioleTestCase(unittest.TestCase):
+    maxDiff = 0x800
 
     def setUp(self):
         fiole.Fiole.push()
@@ -75,6 +76,40 @@ class FioleTestCase(unittest.TestCase):
             'headers': [('Content-Type', 'text/html; charset=utf-8'),
                         ('Content-Length', '12')],
             'data': [],
+            'errors': '',
+        })
+
+    def test_request(self):
+        @fiole.get('/foo/bar')
+        def foobar(request):
+            base_url = 'https://fakehost.invalid/foo/bar/'
+            hdrs_dict = {'Content-Type': 'text/plain',
+                         'Content-Length': '',
+                         'Cookie': ''}
+            self.assertEqual(request.method, 'GET')
+            self.assertEqual(request.path, '/foo/bar/')
+            self.assertEqual(request.query, 'k=baz')
+            self.assertEqual(request.base_url, base_url)
+            self.assertEqual(dict(request.headers), hdrs_dict)
+            self.assertTrue(request.environ)
+            self.assertEqual(list(request.accept), [])
+            self.assertEqual(list(request.accept_charset), [])
+            self.assertEqual(list(request.accept_encoding), [])
+            self.assertEqual(list(request.accept_language), [])
+            self.assertEqual(request.GET, {'k': 'baz'})
+            self.assertEqual(request.POST, {})
+            self.assertEqual(request.PUT, request.POST)
+            self.assertEqual(request.body, b(''))
+            self.assertEqual(request.content_length, 0)
+            self.assertEqual(request.cookies, {})
+            return 'all right'
+        rv = handle_single_request('GET /foo/bar?k=baz')
+        self.assertNoError(rv)
+        self.assertEqual(rv, {
+            'status': '200 OK',
+            'headers': [('Content-Type', 'text/html; charset=utf-8'),
+                        ('Content-Length', '9')],
+            'data': [b('all right')],
             'errors': '',
         })
 
