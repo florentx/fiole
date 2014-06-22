@@ -169,15 +169,17 @@ def _format_vkw(value, kw, _quoted=re.compile(r"[^\w!#$%&'*.^`|~+-]").search):
 class lazyproperty(object):
     """A property whose value is computed only once."""
 
-    def __init__(self, function):
+    def __init__(self, function, func_name=None):
         self._function = function
         update_wrapper(self, function)
+        if func_name is not None:
+            self.__name__ = func_name
 
     def __get__(self, obj, cls=None):
         if obj is None:
             return self
         value = self._function(obj)
-        setattr(obj, self._function.__name__, value)
+        setattr(obj, self.__name__, value)
         return value
 
 
@@ -270,10 +272,10 @@ class Accept(object):
                 offer.startswith(mask + '-') or mask.startswith(offer + '-'))
 
     @classmethod
-    def header(cls, header):
+    def header(cls, header, func_name):
         def fget(request):
             return cls(header, request.headers[header])
-        return lazyproperty(fget)
+        return lazyproperty(fget, func_name)
 
 
 class HTTPHeaders(object):
@@ -412,10 +414,10 @@ class Request(object):
             self.content_length = int(self.headers['Content-Length'] or 0)
         except ValueError:
             self.content_length = 0
-    accept = Accept.header('Accept')
-    accept_charset = Accept.header('Accept-Charset')
-    accept_encoding = Accept.header('Accept-Encoding')
-    accept_language = Accept.header('Accept-Language')
+    accept = Accept.header('Accept', 'accept')
+    accept_charset = Accept.header('Accept-Charset', 'accept_charset')
+    accept_encoding = Accept.header('Accept-Encoding', 'accept_encoding')
+    accept_language = Accept.header('Accept-Language', 'accept_language')
 
     def __getattr__(self, name):
         """Access the environment."""

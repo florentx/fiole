@@ -10,6 +10,8 @@ Changelog
 * Add ``Request.host_url``, ``Request.script_name`` and
   ``Request.get_url(path, full=False)``.  (Issue #4)
 
+* Fix caching of ``Request.accept*`` headers.
+
 
 0.3 (2013-06-12)
 ~~~~~~~~~~~~~~~~
