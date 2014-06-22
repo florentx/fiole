@@ -75,9 +75,11 @@ Next steps
 
 .. code-block:: bash
 
-  git clone git://github.com/florentx/fiole.git fiole_git
-  cd fiole_git/
+  git clone git://github.com/florentx/fiole.git
+  cd fiole/
   python fiole.py examples
+
+Open your browser and navigate through the examples: http://127.0.0.1:8080
 
 Read the documentation about :doc:`routing` and :doc:`template`.
 
