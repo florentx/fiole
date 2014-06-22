@@ -404,6 +404,7 @@ class Request(object):
         self.path = recode(environ.get('PATH_INFO', '/'))
         if self.path[-1:] != '/':
             self.path += '/'
+        self.script_name = environ.get('SCRIPT_NAME', '').rstrip('/')
         self.method = environ.get('REQUEST_METHOD', 'GET').upper()
         self.query = environ.get('QUERY_STRING', '')
         self.headers = EnvironHeaders(environ)
@@ -436,18 +437,16 @@ class Request(object):
     PUT = POST
 
     @lazyproperty
-    def base_url(self):
-        """Build URL without query string, with trailing /."""
-        scheme = self.environ['wsgi.url_scheme']
-        if 'HTTP_HOST' in self.environ:
-            host = scheme + '://' + self.environ['HTTP_HOST']
-        else:
-            host = scheme + '://' + self.environ['SERVER_NAME']
-            port = self.environ['SERVER_PORT']
+    def host_url(self):
+        """Build host URL."""
+        env = self.environ
+        scheme = env['wsgi.url_scheme']
+        host = env.get('HTTP_X_FORWARDED_HOST') or env.get('HTTP_HOST')
+        if not host:    # HTTP/1.0 client
+            (host, port) = (env['SERVER_NAME'], env['SERVER_PORT'])
             if (scheme, port) not in (('https', '443'), ('http', '80')):
                 host += ':' + port
-        script_name = self.environ.get('SCRIPT_NAME', '').rstrip('/')
-        return host + script_name + self.path
+        return scheme + '://' + host
 
     @lazyproperty
     def body(self):
@@ -501,6 +500,19 @@ class Request(object):
             else:
                 post_dict[field] = raw_data[field].value
         return post_dict
+
+    def get_url(self, path='', full=False):
+        """Build the absolute URL for an application path.
+
+        By default it builds the current request URL with leading and
+        trailing ``/`` and no query string.
+        The boolean argument ``full`` builds a full URL, incl. host.
+        """
+        if path[:1] != '/':
+            path = self.path + path
+        if full:
+            return self.host_url + self.script_name + path
+        return self.script_name + path
 
 
 class Response(object):

@@ -93,9 +93,13 @@ WSGI application
 
       Read ``QUERY_STRING`` from the environment.
 
-   .. attribute:: base_url
+   .. attribute:: script_name
 
-      Build URL without query string, with trailing ``/``.
+      Read ``SCRIPT_NAME`` from the environment.
+
+   .. attribute:: host_url
+
+      Build host URL.
 
    .. attribute:: headers
 
@@ -133,6 +137,7 @@ WSGI application
 
    .. automethod:: get_cookie
    .. automethod:: get_secure_cookie
+   .. automethod:: get_url
 
 .. autoclass:: Response
 

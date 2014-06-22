@@ -82,14 +82,20 @@ class FioleTestCase(unittest.TestCase):
     def test_request(self):
         @fiole.get('/foo/bar')
         def foobar(request):
-            base_url = 'https://fakehost.invalid/foo/bar/'
+            host_url = 'https://fakehost.invalid'
             hdrs_dict = {'Content-Type': 'text/plain',
                          'Content-Length': '',
                          'Cookie': ''}
             self.assertEqual(request.method, 'GET')
             self.assertEqual(request.path, '/foo/bar/')
             self.assertEqual(request.query, 'k=baz')
-            self.assertEqual(request.base_url, base_url)
+            self.assertEqual(request.host_url, host_url)
+            self.assertEqual(request.get_url(), '/foo/bar/')
+            self.assertEqual(request.get_url(full=True), host_url+'/foo/bar/')
+            self.assertEqual(request.get_url('baz.yl/ur', full=True),
+                             host_url+'/foo/bar/baz.yl/ur')
+            self.assertEqual(request.get_url('az.yl/r/'), '/foo/bar/az.yl/r/')
+            self.assertEqual(request.get_url('/baz/yl.ur'), '/baz/yl.ur')
             self.assertEqual(dict(request.headers), hdrs_dict)
             self.assertTrue(request.environ)
             self.assertEqual(list(request.accept), [])
