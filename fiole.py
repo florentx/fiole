@@ -26,14 +26,18 @@ try:                  # Python 3
     from io import BytesIO
     from urllib.parse import parse_qs
     unicode = str
-    recode = lambda s: s.encode('iso-8859-1').decode('utf-8')
+
+    def recode(s):
+        return s.encode('iso-8859-1').decode('utf-8')
 except ImportError:   # Python 2
     from httplib import responses as HTTP_CODES
     from Cookie import SimpleCookie
     from cStringIO import StringIO as BytesIO
     from urlparse import parse_qs
     unicode = unicode
-    recode = lambda s: s.decode('utf-8')
+
+    def recode(s):
+        return s.decode('utf-8')
 
 DEFAULT_BIND = {'host': '127.0.0.1', 'port': 8080}
 MAIN_MODULE = '__main__'
@@ -356,9 +360,14 @@ class HTTPHeaders(object):
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, list(self))
 
-    keys = lambda self: [k for (k, v) in self]
-    values = lambda self: [v for (k, v) in self]
-    items = lambda self: list(self)
+    def keys(self):
+        return [k for (k, v) in self]
+
+    def values(self):
+        return [v for (k, v) in self]
+
+    def items(self):
+        return list(self)
 
 
 class EnvironHeaders(HTTPHeaders):
@@ -747,7 +756,8 @@ delete = _make_app_wrapper('delete')
 errorhandler = _make_app_wrapper('errorhandler')
 
 #: Get the :class:`Fiole` application which is on the top of the stack.
-get_app = lambda: Fiole._stack[-1]
+def get_app():
+    return Fiole._stack[-1]
 default_app = Fiole.push()
 
 HTTP_CODES[418] = "I'm a teapot"                    # RFC 2324
