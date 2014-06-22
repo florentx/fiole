@@ -628,7 +628,7 @@ class Fiole(object):
     def encode_signed(self, name, value):
         """Return a signed string with timestamp."""
         value = base64.b64encode(tobytes(value)).decode('utf-8')
-        timestamp = '%X' % time.time()
+        timestamp = '%X' % int(time.time())
         signature = _create_signature(self.secret_key, name, value, timestamp)
         return (value + '|' + timestamp + '|' + signature)
 
