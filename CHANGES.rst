@@ -4,7 +4,7 @@ Changelog
 .. currentmodule:: fiole
 
 
-0.4 (unreleased)
+0.4 (2014-07-02)
 ~~~~~~~~~~~~~~~~
 
 * Add ``Request.host_url``, ``Request.script_name`` and

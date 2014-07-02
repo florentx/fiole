@@ -42,7 +42,7 @@ except ImportError:   # Python 2
 DEFAULT_BIND = {'host': '127.0.0.1', 'port': 8080}
 MAIN_MODULE = '__main__'
 
-__version__ = '0.4.dev0'
+__version__ = '0.4'
 __all__ = ['HTTPError', 'BadRequest', 'Forbidden', 'NotFound',  # HTTP errors
            'MethodNotAllowed', 'InternalServerError', 'Redirect',
            # Base classes

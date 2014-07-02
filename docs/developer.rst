@@ -112,7 +112,7 @@ your web application.  Some ideas that come to my mind:
   concurrency
 * add server caching
 * use load-balancing
-* switch to Pypy
+* switch to PyPy
 
 
 The template engine is already very fast.  Even so, you can achieve a better
@@ -151,7 +151,7 @@ Source code
 The source code is `available on GitHub`_ under the terms and conditions
 of the :ref:`BSD license <license>`.  Fork away!
 
-The tests are run against Python 2.7, 3.2 to 3.4 and Pypy on the `Travis-CI
+The tests are run against Python 2.7, 3.2 to 3.4 and PyPy on the `Travis-CI
 platform <http://travis-ci.org/florentx/fiole>`_.
 
 Project on PyPI: https://pypi.python.org/pypi/fiole
