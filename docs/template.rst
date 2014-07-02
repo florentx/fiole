@@ -23,6 +23,8 @@ In a nutshell, the syntax looks as simple as `Bottle SimpleTemplate`_:
   and inserts the result.
 * Use the ``|e`` filter to convert any of ``& < > " '`` to HTML-safe
   sequences.
+* Switch to auto-escaping with ``fiole.engine.default_filters = ['e']`` and
+  use ``|n`` to disable escaping (and default filters) for an expression.
 * A single percent ``%`` at the beginning of the line identifies a
   :ref:`template directive<template_directives>` or
   :ref:`Python code<template_python_code>`.
@@ -170,6 +172,19 @@ An example which demonstrates the standard ``|e`` filter::
 
     >>> render_template('This: {{ data | e }}', data='"Hello small\' <i>World!<i>" ... & farther')
     u'This: &quot;Hello small&#x27; &lt;i&gt;World!&lt;i&gt;&quot; ... &amp; farther'
+
+
+You can enable auto-escaping by default, then use ``|n`` as the last
+filter to bypass the default filters::
+
+    >>> fiole.engine.default_filters = ['e']
+    >>>
+    >>> fiole.render_template(source='Hello {{ party.capitalize() }}',
+    ...                       party='<script src="evil" />')
+    u'Hello &lt;script src=&quot;evil&quot; /&gt;'
+    >>> fiole.render_template(source='Hello {{ party | n }}',
+    ...                       party='<em>World</em>')
+    u'Hello <em>World</em>'
 
 
 You are able to use engine :data:`Engine.global_vars` dictionary in order
@@ -393,9 +408,6 @@ when preparing the template (recommended for string templates).
 When using the :func:`render_template` function with a ``(source="...")``
 keyword argument, the declaration ``%require`` is automatically generated
 based on the names of the other keyword arguments passed to the function.
-
-The HTML escaping cannot be activated globally.  Each string which is
-potentially unsafe should be filtered with ``|e``.
 
 
 These features are not supported (among others):

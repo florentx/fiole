@@ -56,16 +56,6 @@ Pi = {{ '%.9f' % math.pi }}"""),
 %require(username)
 Welcome, {{username}}!"""), 'Welcome, John!')
 
-    def test_var_extra_space(self):
-        ctx = {'username': 'John'}
-        self.assertEqual(self.render(ctx, """\
-%require( username  , \\
-                    )
-Welcome, {{
-    \tusername\t
-}}!"""),
-                         'Welcome, John!')
-
     def test_if(self):
         template = """\
 %require(n)
@@ -149,6 +139,51 @@ Hi, {{name}}\
         self.assertEqual(self.render({'magic': 42}, template),
                          '    First Line')
         self.assertEqual(self.render({'magic': 987}, template), 'Moar Lines')
+
+
+class ExpressionTestCase(unittest.TestCase):
+    """Test some template expressions."""
+
+    def setUp(self):
+        import fiole
+        self.engine = fiole.Engine(loader=fiole.Loader(templates={}))
+
+    def render(self, ctx, source):
+        template = self.engine.get_template(source=source)
+        return template.render(ctx)
+
+    def test_extra_space(self):
+        ctx = {'username': 'John'}
+        self.assertEqual(self.render(ctx, """\
+%require( username  , \\
+                    )
+Welcome, {{
+    \tusername\t
+}}!"""),
+                         'Welcome, John!')
+
+    def test_escape_html(self):
+        ctx = {'username': '<script src="evil" />John'}
+        self.assertEqual(self.render(ctx, """\
+%require(username)
+Welcome, {{username |e}}!"""),
+                         'Welcome, &lt;script src=&quot;evil&quot; /&gt;John!')
+
+    def test_default_escape(self):
+        self.engine.default_filters[:] = ['e']
+        ctx = {'username': '<script src="evil" />John'}
+        self.assertEqual(self.render(ctx, """\
+%require(username)
+Welcome, {{username}}!"""),
+                         'Welcome, &lt;script src=&quot;evil&quot; /&gt;John!')
+
+    def test_skip_default_filters(self):
+        self.engine.default_filters[:] = ['e']
+        ctx = {'username': '<em>John</em>'}
+        self.assertEqual(self.render(ctx, """\
+%require(username)
+Welcome, {{username| n }}"""),
+                         'Welcome, <em>John</em>')
 
 
 class StatementTestCase(unittest.TestCase):

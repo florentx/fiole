@@ -1049,7 +1049,11 @@ class BlockBuilder(list):
             elif token == 'var':
                 filters = [f.strip() for f in value.split('|')]
                 value = filters.pop(0)
-                for f in filters + self.default_filters:
+                if filters and filters[-1] == 'n':
+                    filters.pop()
+                else:
+                    filters += self.default_filters
+                for f in filters:
                     value = self.filters.get(f, f) + '(' + value + ')'
             elif value:
                 value = repr(value)

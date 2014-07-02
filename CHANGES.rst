@@ -10,6 +10,8 @@ Changelog
 * Add ``Request.host_url``, ``Request.script_name`` and
   ``Request.get_url(path, full=False)``.  (Issue #4)
 
+* Add ``|n`` filter to disable default filters.  (Issue #5)
+
 * Fix caching of ``Request.accept*`` headers.
 
 
