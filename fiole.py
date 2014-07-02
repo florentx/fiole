@@ -769,8 +769,9 @@ put = _make_app_wrapper('put')
 delete = _make_app_wrapper('delete')
 errorhandler = _make_app_wrapper('errorhandler')
 
-#: Get the :class:`Fiole` application which is on the top of the stack.
+
 def get_app():
+    """Get the :class:`Fiole` application which is on the top of the stack."""
     return Fiole._stack[-1]
 default_app = Fiole.push()
 
