@@ -177,13 +177,12 @@ An example which demonstrates the standard ``|e`` filter::
 You can enable auto-escaping by default, then use ``|n`` as the last
 filter to bypass the default filters::
 
-    >>> fiole.engine.default_filters = ['e']
-    >>>
-    >>> fiole.render_template(source='Hello {{ party.capitalize() }}',
-    ...                       party='<script src="evil" />')
+    >>> engine.default_filters = ['e']
+    >>> render_template(source='Hello {{ party.capitalize() }}',
+    ...                 party='<script src="evil" />')
     u'Hello &lt;script src=&quot;evil&quot; /&gt;'
-    >>> fiole.render_template(source='Hello {{ party | n }}',
-    ...                       party='<em>World</em>')
+    >>> render_template(source='Hello {{ party | n }}',
+    ...                 party='<em>World</em>')
     u'Hello <em>World</em>'
 
 
