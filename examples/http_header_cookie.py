@@ -1,13 +1,30 @@
 # -*- coding: utf-8 -*-
 from fiole import *
 
-u = str if (''.encode() != '') else lambda s: s.decode('utf-8')
+u = str if (str is not bytes) else lambda s: s.decode('utf-8')
+
+XML_DOCUMENT="""\
+<?xml version="1.0" encoding="UTF-8"?>
+<root><info>Check your Content-Type headers.</info>
+<俄语>данные</俄语></root>
+"""
 
 
-@get('/ct')
+@get('/ct_default')
 def ct(request):
-    response = Response('Check your Content-Type headers.',
-                        content_type='text/plain')
+    response = Response(XML_DOCUMENT)
+    return response
+
+
+@get('/ct_plain')
+def ct(request):
+    response = Response(XML_DOCUMENT, content_type='text/plain')
+    return response
+
+
+@get('/ct_xml')
+def ct(request):
+    response = Response(XML_DOCUMENT, content_type='application/xml')
     return response
 
 
