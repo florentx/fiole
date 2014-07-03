@@ -6,7 +6,7 @@ def index(request):
     try:
         # Should raise an error.
         return 'What? Somehow found a remote user: %s' % request.REMOTE_USER
-    except KeyError:
+    except AttributeError:
         pass
 
     return render_template("""\
