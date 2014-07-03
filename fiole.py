@@ -42,7 +42,7 @@ except ImportError:   # Python 2
 DEFAULT_BIND = {'host': '127.0.0.1', 'port': 8080}
 MAIN_MODULE = '__main__'
 
-__version__ = '0.4'
+__version__ = '0.4.1'
 __all__ = ['HTTPError', 'BadRequest', 'Forbidden', 'NotFound',  # HTTP errors
            'MethodNotAllowed', 'InternalServerError', 'Redirect',
            # Base classes
@@ -111,8 +111,10 @@ def tobytes(value):
 
 def escape_html(s):
     """Escape special chars in HTML string."""
-    return (cgi.escape(s if isinstance(s, unicode) else unicode(s))
-               .replace('"', '&quot;').replace("'", '&#x27;'))
+    if not isinstance(s, unicode):
+        s = unicode(s)
+    return (s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+             .replace('"', '&quot;').replace("'", '&#x27;'))
 
 
 def format_timestamp(ts):

@@ -4,6 +4,13 @@ Changelog
 .. currentmodule:: fiole
 
 
+0.4.1 (unreleased)
+~~~~~~~~~~~~~~~~~~
+
+* Replace deprecated ``cgi.escape`` with a copy of Python 3.4's
+  ``html.escape``.
+
+
 0.4 (2014-07-02)
 ~~~~~~~~~~~~~~~~
 
