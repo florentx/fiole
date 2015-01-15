@@ -1225,8 +1225,21 @@ def run_wsgiref(host, port, handler):
 
     srv = make_server(host, port, handler)
     srv.serve_forever()
+    
+def run_gevent(host, port, handler):
+    """Run the gevent async pywsgi wrapper; patch IO to non-blocking ops."""
+    from gevent import monkey; monkey.patch_all()
+    from gevent import pywsgi
+    srv = pywsgi.WSGIServer((host, port), handler)
+    srv.serve_forever()
 
-
+def run_bjoern(host, port, handler):
+    """Adapter to run the async Bjoern Wsgi server"""
+    # https://github.com/jonashaag/bjoern
+    import bjoern
+    bjoern.listen(handler, host, port)
+    bjoern.run()
+    
 def run_fiole(app=default_app, server=run_wsgiref, host=None, port=None):
     """Run the *Fiole* web server."""
     if not hasattr(app, 'secret_key'):
