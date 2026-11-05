@@ -977,6 +977,14 @@ class BlockBuilder(list):
         """Compile the generated source code."""
         source = compile('\n'.join(self), name, 'exec', ast.PyCF_ONLY_AST)
         ast.increment_lineno(source, self.offset)
+        # The offset aligns code line numbers with template line numbers, but it moves the
+        # function header (def render, _b = []) to lines < 1, which compile() rejects since
+        # Python 3.11. Move such nodes to line 1.
+        for node in ast.walk(source):
+            if getattr(node, 'lineno', 1) < 1:
+                node.lineno, node.col_offset = 1, 0
+            if getattr(node, 'end_lineno', None) is not None and node.end_lineno < 1:
+                node.end_lineno, node.end_col_offset = 1, 0
         return compile(source, name, 'exec')
 
     # all builder rules
