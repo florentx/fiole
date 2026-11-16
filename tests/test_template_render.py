@@ -96,14 +96,42 @@ Welcome, {{name}}!\\
 {{title()}}."""),
                          '.')
 
-    def test_def_syntax_error_compound(self):
-        self.assertRaises(SyntaxError, self.render, {}, """\
+    def test_def_compound(self):
+        self.assertEqual(self.render({}, """\
 %def welcome(name):
 %if name:
 Welcome, {{name}}!\\
 %end
 %end
-{{welcome('John')}}""")
+{{welcome('John')}}"""),
+                         'Welcome, John!')
+
+    def test_def_compound_lineno(self):
+        # Line numbers of the code match the template (issue #8)
+        import sys
+        import traceback
+        source = """\
+%def one(x):
+%if x:
+{{ 1 / 0 }}
+%end
+%end
+%def two(x):
+%for i in x:
+{{ i / 0 }}
+%end
+%end
+{{ ctx['f'](one, two) }}"""
+        for (f, lines) in [(lambda one, two: one(1), [11, 3]),
+                           (lambda one, two: two([1]), [11, 8])]:
+            try:
+                self.render({'f': f}, source)
+            except ZeroDivisionError:
+                tb = traceback.extract_tb(sys.exc_info()[2])
+                self.assertEqual(
+                    [ln for (fn, ln, _, _) in tb if fn == 'test.html'], lines)
+            else:
+                self.fail('ZeroDivisionError not raised')
 
     def test_def_no_syntax_error(self):
         self.assertEqual(self.render({}, """\

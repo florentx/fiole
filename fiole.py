@@ -934,6 +934,7 @@ class BlockBuilder(list):
     def __init__(self, indent='', lineno=0, nodes=(), default_filters=None):
         self.indent = indent
         self.lineno = self.offset = lineno
+        self.extra_lines = []
         self.local_vars = set()
         self.default_filters = default_filters or []
         self.build_block(nodes)
@@ -976,15 +977,20 @@ class BlockBuilder(list):
     def compile_code(self, name):
         """Compile the generated source code."""
         source = compile('\n'.join(self), name, 'exec', ast.PyCF_ONLY_AST)
-        ast.increment_lineno(source, self.offset)
-        # The offset aligns code line numbers with template line numbers, but it moves the
-        # function header (def render, _b = []) to lines < 1, which compile() rejects since
-        # Python 3.11. Move such nodes to line 1.
+        # Align code line numbers with template line numbers: apply the offset and drop
+        # the extra lines. The offset moves the function header (def render, _b = []) to
+        # lines < 1, which compile() rejects since Python 3.11. Move such nodes to line 1.
         for node in ast.walk(source):
-            if getattr(node, 'lineno', 1) < 1:
-                node.lineno, node.col_offset = 1, 0
-            if getattr(node, 'end_lineno', None) is not None and node.end_lineno < 1:
-                node.end_lineno, node.end_col_offset = 1, 0
+            for (attr, col) in (('lineno', 'col_offset'),
+                                ('end_lineno', 'end_col_offset')):
+                n = getattr(node, attr, None)
+                if n is None:
+                    continue
+                n += self.offset - sum(x <= n for x in self.extra_lines)
+                if n < 1:
+                    n = 1
+                    setattr(node, col, 0)
+                setattr(node, attr, n)
         return compile(source, name, 'exec')
 
     # all builder rules
@@ -1029,12 +1035,6 @@ class BlockBuilder(list):
     def build_def(self, lineno, value):
         (stmt, nodes) = value
         (ln, token, subnodes) = nodes[0]
-        if token in COMPOUND_TOKENS:
-            error = ("The compound statement '%s' is not allowed here. "
-                     "Add a line before it with %%#ignore.\n\n%s\n"
-                     "    %%#ignore\n    %%%s ..." % (token, stmt, token))
-            with self.add(lineno, stmt):
-                return self.add(ln, 'raise SyntaxError(%r)' % error)
         single_markup = None
         if len(nodes) == 1:
             (ln, single_markup) = (lineno, '')
@@ -1046,6 +1046,11 @@ class BlockBuilder(list):
         with self.add(lineno, stmt):
             if single_markup is None:
                 self.add(lineno + 1, self.writer_declare)
+                if token in COMPOUND_TOKENS:
+                    # A compound statement cannot follow "; " on the same
+                    # line: give it an extra line, removed in compile_code
+                    self.append('')
+                    self.extra_lines.append(len(self))
                 self.build_block(nodes)
                 ln = self.lineno
                 self.add(ln, self.writer_return)
